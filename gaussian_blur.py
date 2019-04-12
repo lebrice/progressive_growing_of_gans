@@ -7,6 +7,7 @@ import tensorflow.keras as keras
 import tensorflow.math as math
 from typing import Tuple
 
+import tfutil
 
 def image_at_scale(images: tf.Tensor, scale: float) -> tf.Tensor:
     """

@@ -168,6 +168,10 @@ def train_progressive_gan(
 
     with tf.name_scope('Inputs'):
         default_scale = tf.constant(0.0)
+        print_op = tf.print("default scaled was used", default_scale)
+        with tf.control_dependencies([print_op]):
+            default_scale = tf.identity(default_scale)
+
         scale = tf.placeholder_with_default(default_scale, shape=[], name="scale")
         # added default values to not have to pass it in the feed_dict all the time.
         lod_in_default = tf.constant(0.0, name="lod_in")
@@ -279,7 +283,7 @@ def train_progressive_gan(
                 tfutil.autosummary('Timing/maintenance_sec', maintenance_time)))
             tfutil.autosummary('Timing/total_hours', total_time / (60.0 * 60.0))
             tfutil.autosummary('Timing/total_days', total_time / (24.0 * 60.0 * 60.0))
-            tfutil.save_summaries(summary_log, cur_nimg)
+            tfutil.save_summaries(summary_log, cur_nimg, scale=scale_value)
 
             # Save snapshots.
             if cur_tick % image_snapshot_ticks == 0 or done:

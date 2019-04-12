@@ -198,13 +198,13 @@ def _create_autosummary_var(name, value_expr):
 
 _summary_merge_op = None
 
-def save_summaries(filewriter, global_step=None):
+def save_summaries(filewriter, global_step=None, scale = 0.0):
     global _summary_merge_op
     if _summary_merge_op is None:
         finalize_autosummaries()
         with tf.device(None), tf.control_dependencies(None):
             _summary_merge_op = tf.summary.merge_all()
-    filewriter.add_summary(_summary_merge_op.eval(), global_step)
+    filewriter.add_summary(_summary_merge_op.eval(feed_dict={"Inputs/scale:0": scale}), global_step)
 
 #----------------------------------------------------------------------------
 # Utilities for importing modules and objects by name.
