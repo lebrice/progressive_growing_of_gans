@@ -8,7 +8,7 @@ import tensorflow.math as math
 from typing import Tuple
 
 
-def image_at_scale(images: tf.Tensor, scale = None) -> tf.Tensor:
+def image_at_scale(images: tf.Tensor, scale: float) -> tf.Tensor:
     """
 
     scale: float in range [0, image_resolution]
@@ -18,11 +18,6 @@ def image_at_scale(images: tf.Tensor, scale = None) -> tf.Tensor:
 
     h, w, c = get_image_dims(images)
     full_resolution = tf.cast(math.maximum(h, w), tf.float32)
-    with tf.variable_scope("blur", reuse=tf.AUTO_REUSE):
-        # by default, the shape used is 
-        default_scale = tf.constant(0.0)
-        if scale is None:
-            scale = tf.get_variable("scale", dtype=tf.float32, initializer=default_scale)
 
     # Ensure maximum element of x is smaller or equal to 1
     # assert_op = tf.Assert(tf.less_equal(scale, full_resolution), [scale])
@@ -36,8 +31,12 @@ def image_at_scale(images: tf.Tensor, scale = None) -> tf.Tensor:
     # In case the kernel size was clipped, we make sure to get the right std for that kernel size.
     # If we don't do this, we might end up with a huge kernel, but with high values even at the edges.
     std = appropriate_std(kernel_size)
-
+    with tf.device("cpu:0"), tf.variable_scope("gaussian_blur", reuse=tf.AUTO_REUSE):
+        tf.summary.scalar("kernel_size", kernel_size)
+        tf.summary.scalar("std", std)
+        tf.summary.scalar("scale", scale)
     # Warn the user if the scale given is larger than what is reasonable.
+    # with tf.control_dependencies([tf.print("scale:", scale, "std:", std, "kernel_size:", kernel_size)]):
     return gaussian_blur(images, std, kernel_size)
 
 

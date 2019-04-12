@@ -167,10 +167,13 @@ def train_progressive_gan(
     print('Building TensorFlow graph...')
 
     with tf.name_scope('Inputs'):
-        # lod_in          = tf.placeholder(tf.float32, name='lod_in', shape=[])
-        lod_in = tf.constant(0.0, name="lod_in")
-        minibatch_default = tf.constant(16)
+        default_scale = tf.constant(0.0)
+        scale = tf.placeholder_with_default(default_scale, shape=[], name="scale")
+        # added default values to not have to pass it in the feed_dict all the time.
+        lod_in_default = tf.constant(0.0, name="lod_in")
         lr_default = tf.constant(1e-4)
+        minibatch_default = tf.constant(16)
+        lod_in = tf.placeholder_with_default(lod_in_default, name='lod_in', shape=[])
         lrate_in        = tf.placeholder_with_default(lr_default, name='lrate_in', shape=[])
         minibatch_in    = tf.placeholder_with_default(minibatch_default, name='minibatch_in', shape=[])
         minibatch_split = minibatch_in // config.num_gpus
@@ -187,9 +190,9 @@ def train_progressive_gan(
             reals_gpu = process_reals(reals_split[gpu], lod_in, mirror_augment, training_set.dynamic_range, drange_net)
             labels_gpu = labels_split[gpu]
             with tf.name_scope('G_loss'), tf.control_dependencies(lod_assign_ops):
-                G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, opt=G_opt, training_set=training_set, minibatch_size=minibatch_split, **config.G_loss)
+                G_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, opt=G_opt, training_set=training_set, minibatch_size=minibatch_split, scale=scale, **config.G_loss)
             with tf.name_scope('D_loss'), tf.control_dependencies(lod_assign_ops):
-                D_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, opt=D_opt, training_set=training_set, minibatch_size=minibatch_split, reals=reals_gpu, labels=labels_gpu, **config.D_loss)
+                D_loss = tfutil.call_func_by_name(G=G_gpu, D=D_gpu, opt=D_opt, training_set=training_set, minibatch_size=minibatch_split, reals=reals_gpu, labels=labels_gpu, scale=scale, **config.D_loss)
             G_opt.register_gradients(tf.reduce_mean(G_loss), G_gpu.trainables)
             D_opt.register_gradients(tf.reduce_mean(D_loss), D_gpu.trainables)
     G_train_op = G_opt.apply_updates()
@@ -221,21 +224,21 @@ def train_progressive_gan(
     def scale_schedule() -> float:
         full_res = 128.0
         t = full_res * (1 - cur_nimg / (total_kimg * 1000))
-        print(f"curr nimg: {cur_nimg} scale: {t:-3.3f}")
+        # print(f"curr nimg: {cur_nimg} scale: {t:-3.3f}")
         return t
 
     # TODO: implement the scale schedule
-    with tf.variable_scope("blur", reuse=tf.AUTO_REUSE):
-        scale = tf.get_variable("scale", shape=[], trainable=False)
+    # with tf.variable_scope("blur", reuse=tf.AUTO_REUSE):
+    #     scale = tf.get_variable("scale", shape=[], trainable=False)
 
     while cur_nimg < total_kimg * 1000:
         # Choose training parameters and configure training ops.
         sched = TrainingSchedule(cur_nimg, training_set, **config.sched)
         
-        tfutil.run([scale.initializer], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch})
-        def update_scale():
-            _scale = scale_schedule()
-            tfutil.run([tf.assign(scale, _scale)], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch})
+        # tfutil.run([scale.initializer], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch})
+        # def update_scale():
+        #     _scale = scale_schedule()
+        #     tfutil.run([tf.assign(scale, _scale)], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch})
 
         training_set.configure(sched.minibatch, sched.lod)
         if reset_opt_for_new_lod:
@@ -246,10 +249,9 @@ def train_progressive_gan(
         # Run training ops.
         for repeat in range(minibatch_repeats):
             for _ in range(D_repeats):
-                tfutil.run([D_train_op, Gs_update_op], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch})
+                tfutil.run([D_train_op, Gs_update_op], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch, scale: scale_schedule()})
                 cur_nimg += sched.minibatch
-                update_scale()
-            tfutil.run([G_train_op], {lod_in: sched.lod, lrate_in: sched.G_lrate, minibatch_in: sched.minibatch})
+            tfutil.run([G_train_op], {lod_in: sched.lod, lrate_in: sched.G_lrate, minibatch_in: sched.minibatch, scale: scale_schedule()})
 
         # Perform maintenance tasks once per tick.
         done = (cur_nimg >= total_kimg * 1000)
