@@ -166,8 +166,6 @@ def train_progressive_gan(
 
     print('Building TensorFlow graph...')
 
-    scale = tf.get_variableVariable()
-
     with tf.name_scope('Inputs'):
         lod_in          = tf.placeholder(tf.float32, name='lod_in', shape=[])
         lrate_in        = tf.placeholder(tf.float32, name='lrate_in', shape=[])
