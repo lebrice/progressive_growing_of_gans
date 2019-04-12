@@ -10,6 +10,8 @@ import tensorflow as tf
 
 import tfutil
 
+from gaussian_blur import image_at_scale, get_image_dims
+
 #----------------------------------------------------------------------------
 # Convenience func that casts all of its arguments to tf.float32.
 
@@ -28,6 +30,10 @@ def G_wgan_acgan(G, D, opt, training_set, minibatch_size,
     latents = tf.random_normal([minibatch_size] + G.input_shapes[0][1:])
     labels = training_set.get_random_labels_tf(minibatch_size)
     fake_images_out = G.get_output_for(latents, labels, is_training=True)
+
+    # add the blurring:
+    fake_images_out = image_at_scale(fake_images_out)
+
     fake_scores_out, fake_labels_out = fp32(D.get_output_for(fake_images_out, is_training=True))
     loss = -fake_scores_out
 
@@ -48,6 +54,10 @@ def D_wgangp_acgan(G, D, opt, training_set, minibatch_size, reals, labels,
 
     latents = tf.random_normal([minibatch_size] + G.input_shapes[0][1:])
     fake_images_out = G.get_output_for(latents, labels, is_training=True)
+
+    reals = image_at_scale(reals)
+    fake_images_out = image_at_scale(fake_images_out)
+
     real_scores_out, real_labels_out = fp32(D.get_output_for(reals, is_training=True))
     fake_scores_out, fake_labels_out = fp32(D.get_output_for(fake_images_out, is_training=True))
     real_scores_out = tfutil.autosummary('Loss/real_scores', real_scores_out)

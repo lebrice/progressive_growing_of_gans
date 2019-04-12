@@ -165,6 +165,9 @@ def train_progressive_gan(
     G.print_layers(); D.print_layers()
 
     print('Building TensorFlow graph...')
+
+    scale = tf.get_variableVariable()
+
     with tf.name_scope('Inputs'):
         lod_in          = tf.placeholder(tf.float32, name='lod_in', shape=[])
         lrate_in        = tf.placeholder(tf.float32, name='lrate_in', shape=[])
@@ -223,12 +226,15 @@ def train_progressive_gan(
                 G_opt.reset_optimizer_state(); D_opt.reset_optimizer_state()
         prev_lod = sched.lod
 
+        # TODO: implement the scale schedule
+        scale = 64.0
+
         # Run training ops.
         for repeat in range(minibatch_repeats):
             for _ in range(D_repeats):
-                tfutil.run([D_train_op, Gs_update_op], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch})
+                tfutil.run([D_train_op, Gs_update_op], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch, "scale": scale})
                 cur_nimg += sched.minibatch
-            tfutil.run([G_train_op], {lod_in: sched.lod, lrate_in: sched.G_lrate, minibatch_in: sched.minibatch})
+            tfutil.run([G_train_op], {lod_in: sched.lod, lrate_in: sched.G_lrate, minibatch_in: sched.minibatch, "scale": scale})
 
         # Perform maintenance tasks once per tick.
         done = (cur_nimg >= total_kimg * 1000)
