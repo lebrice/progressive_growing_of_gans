@@ -8,26 +8,27 @@ import tensorflow.math as math
 from typing import Tuple
 
 
-def image_at_scale(images: tf.Tensor) -> tf.Tensor:
+def image_at_scale(images: tf.Tensor, scale = None) -> tf.Tensor:
     """
 
     scale: float in range [0, image_resolution]
     """
 
-
     # add the blurring:
 
     h, w, c = get_image_dims(images)
     full_resolution = tf.cast(math.maximum(h, w), tf.float32)
-
-    # by default, the shape used is 
-    default_scale = tf.constant(0.0)
-    scale = tf.placeholder_with_default(default_scale, default_scale.shape, name="scale")
+    with tf.variable_scope("blur", reuse=tf.AUTO_REUSE):
+        # by default, the shape used is 
+        default_scale = tf.constant(0.0)
+        if scale is None:
+            scale = tf.get_variable("scale", dtype=tf.float32, initializer=default_scale)
 
     # Ensure maximum element of x is smaller or equal to 1
-    assert_op = tf.Assert(tf.less_equal(scale, full_resolution), f"Scale is too large! ({scale})")
-    with tf.control_dependencies([assert_op]):
-        std = math.sqrt(scale)
+    # assert_op = tf.Assert(tf.less_equal(scale, full_resolution), [scale])
+    # with tf.control_dependencies([assert_op]):
+        # std = math.sqrt(scale)
+    std = math.sqrt(scale)
 
     kernel_size = appropriate_kernel_size(std)
     # we won't use a kernel bigger than the resolution of the image!
@@ -55,16 +56,19 @@ def appropriate_std(kernel_size: int) -> float:
 
 def get_data_format(image) -> str:
     if image.shape[-1].value in (1, 3):
+        print("NHWC")
         return "NHWC"
     else:
+        print("NCHW")
         return "NCHW"
 
 
 def get_image_dims(image) -> Tuple[int, int]:
     data_format = get_data_format(image)
-    image_height = image.shape[1 if data_format == "NHWC" else -2]
+    image_height = image.shape[1 if data_format == "NHWC" else 2]
     image_width = image.shape[2 if data_format == "NHWC" else -1]
     image_channels = image.shape[-1 if data_format == "NHWC" else 1]
+    print(image_height, image_width, image_channels)
     return image_height, image_width, image_channels
 
 
