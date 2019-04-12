@@ -39,7 +39,7 @@ env.TF_CPP_MIN_LOG_LEVEL                        = '1'       # 0 (default) = Prin
 desc        = 'pgan'                                        # Description string included in result subdir name.
 random_seed = 1000                                          # Global random seed.
 dataset     = EasyDict()                                    # Options for dataset.load_dataset().
-train       = EasyDict(func='train.train_progressive_gan')  # Options for main training func.
+train       = EasyDict(func='train.train_progressive_gan', resume_run_id=None)  # Options for main training func.
 G           = EasyDict(func='networks.G_paper')             # Options for generator network.
 D           = EasyDict(func='networks.D_paper')             # Options for discriminator network.
 G_opt       = EasyDict(beta1=0.0, beta2=0.99, epsilon=1e-8) # Options for generator optimizer.
@@ -107,7 +107,7 @@ desc += '-fp32'; sched.max_minibatch_per_gpu = {256: 16, 512: 8, 1024: 4}
 #desc += '-fp16'; G.dtype = 'float16'; D.dtype = 'float16'; G.pixelnorm_epsilon=1e-4; G_opt.use_loss_scaling = True; D_opt.use_loss_scaling = True; sched.max_minibatch_per_gpu = {512: 16, 1024: 8}
 
 # Disable individual features.
-desc += '-nogrowing'; sched.lod_initial_resolution = 128; sched.lod_training_kimg = 0; sched.lod_transition_kimg = 0; train.total_kimg = 10000
+desc += '-nogrowing'; sched.lod_initial_resolution = 128; sched.lod_training_kimg = 0; sched.lod_transition_kimg = 0; train.total_kimg = 10000; 
 #desc += '-nopixelnorm'; G.use_pixelnorm = False
 #desc += '-nowscale'; G.use_wscale = False; D.use_wscale = False
 #desc += '-noleakyrelu'; G.use_leakyrelu = False
@@ -117,7 +117,7 @@ desc += '-nogrowing'; sched.lod_initial_resolution = 128; sched.lod_training_kim
 
 # Special modes.
 #desc += '-BENCHMARK'; sched.lod_initial_resolution = 4; sched.lod_training_kimg = 3; sched.lod_transition_kimg = 3; train.total_kimg = (8*2+1)*3; sched.tick_kimg_base = 1; sched.tick_kimg_dict = {}; train.image_snapshot_ticks = 1000; train.network_snapshot_ticks = 1000
-#desc += '-BENCHMARK0'; sched.lod_initial_resolution = 1024; train.total_kimg = 10; sched.tick_kimg_base = 1; sched.tick_kimg_dict = {}; train.image_snapshot_ticks = 1000; train.network_snapshot_ticks = 1000
+desc += '-BENCHMARK0'; sched.lod_initial_resolution = 128; train.total_kimg = 10; sched.tick_kimg_base = 1; sched.tick_kimg_dict = {}; train.image_snapshot_ticks = 1000; train.network_snapshot_ticks = 1000
 #desc += '-VERBOSE'; sched.tick_kimg_base = 1; sched.tick_kimg_dict = {}; train.image_snapshot_ticks = 1; train.network_snapshot_ticks = 100
 #desc += '-GRAPH'; train.save_tf_graph = True
 #desc += '-HIST'; train.save_weight_histograms = True

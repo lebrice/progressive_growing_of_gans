@@ -167,9 +167,12 @@ def train_progressive_gan(
     print('Building TensorFlow graph...')
 
     with tf.name_scope('Inputs'):
-        lod_in          = tf.placeholder(tf.float32, name='lod_in', shape=[])
-        lrate_in        = tf.placeholder(tf.float32, name='lrate_in', shape=[])
-        minibatch_in    = tf.placeholder(tf.int32, name='minibatch_in', shape=[])
+        # lod_in          = tf.placeholder(tf.float32, name='lod_in', shape=[])
+        lod_in = tf.constant(0.0, name="lod_in")
+        minibatch_default = tf.constant(16)
+        lr_default = tf.constant(1e-4)
+        lrate_in        = tf.placeholder_with_default(lr_default, name='lrate_in', shape=[])
+        minibatch_in    = tf.placeholder_with_default(minibatch_default, name='minibatch_in', shape=[])
         minibatch_split = minibatch_in // config.num_gpus
         reals, labels   = training_set.get_minibatch_tf()
         reals_split     = tf.split(reals, config.num_gpus)
@@ -215,7 +218,12 @@ def train_progressive_gan(
     train_start_time = tick_start_time - resume_time
     prev_lod = -1.0
 
-    
+    def scale_schedule() -> float:
+        full_res = 128.0
+        t = full_res * (1 - cur_nimg / (total_kimg * 1000))
+        print(f"curr nimg: {cur_nimg} scale: {t:-3.3f}")
+        return t
+
     # TODO: implement the scale schedule
     with tf.variable_scope("blur", reuse=tf.AUTO_REUSE):
         scale = tf.get_variable("scale", shape=[], trainable=False)
@@ -225,7 +233,9 @@ def train_progressive_gan(
         sched = TrainingSchedule(cur_nimg, training_set, **config.sched)
         
         tfutil.run([scale.initializer], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch})
-
+        def update_scale():
+            _scale = scale_schedule()
+            tfutil.run([tf.assign(scale, _scale)], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch})
 
         training_set.configure(sched.minibatch, sched.lod)
         if reset_opt_for_new_lod:
@@ -233,12 +243,12 @@ def train_progressive_gan(
                 G_opt.reset_optimizer_state(); D_opt.reset_optimizer_state()
         prev_lod = sched.lod
 
-
         # Run training ops.
         for repeat in range(minibatch_repeats):
             for _ in range(D_repeats):
                 tfutil.run([D_train_op, Gs_update_op], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch})
                 cur_nimg += sched.minibatch
+                update_scale()
             tfutil.run([G_train_op], {lod_in: sched.lod, lrate_in: sched.G_lrate, minibatch_in: sched.minibatch})
 
         # Perform maintenance tasks once per tick.
@@ -253,12 +263,14 @@ def train_progressive_gan(
             maintenance_time = tick_start_time - maintenance_start_time
             maintenance_start_time = cur_time
 
+            scale_value = scale_schedule()
             # Report progress.
-            print('tick %-5d kimg %-8.1f lod %-5.2f minibatch %-4d time %-12s sec/tick %-7.1f sec/kimg %-7.2f maintenance %.1f' % (
+            print('tick %-5d kimg %-8.1f lod %-5.2f minibatch %-4d scale %-2.3f time %-12s sec/tick %-7.1f sec/kimg %-7.2f maintenance %.1f' % (
                 tfutil.autosummary('Progress/tick', cur_tick),
                 tfutil.autosummary('Progress/kimg', cur_nimg / 1000.0),
                 tfutil.autosummary('Progress/lod', sched.lod),
                 tfutil.autosummary('Progress/minibatch', sched.minibatch),
+                tfutil.autosummary('Progress/scale', scale_value),
                 misc.format_time(tfutil.autosummary('Timing/total_sec', total_time)),
                 tfutil.autosummary('Timing/sec_per_tick', tick_time),
                 tfutil.autosummary('Timing/sec_per_kimg', tick_time / tick_kimg),

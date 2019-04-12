@@ -61,6 +61,11 @@ def D_wgangp_acgan(G, D, opt, training_set, minibatch_size, reals, labels,
     reals = image_at_scale(reals)
     fake_images_out.set_shape([None, 3,128,128])
     fake_images_out = image_at_scale(fake_images_out)
+    with tf.device("cpu:0"):
+        _reals = tf.transpose(reals, [0, 2, 3, 1])
+        _fakes = tf.transpose(fake_images_out, [0, 2, 3, 1])
+        tf.summary.image("reals", _reals)
+        tf.summary.image("fakes", _fakes)
 
     real_scores_out, real_labels_out = fp32(D.get_output_for(reals, is_training=True))
     fake_scores_out, fake_labels_out = fp32(D.get_output_for(fake_images_out, is_training=True))

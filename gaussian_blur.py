@@ -56,19 +56,16 @@ def appropriate_std(kernel_size: int) -> float:
 
 def get_data_format(image) -> str:
     if image.shape[-1].value in (1, 3):
-        print("NHWC")
         return "NHWC"
     else:
-        print("NCHW")
         return "NCHW"
 
 
-def get_image_dims(image) -> Tuple[int, int]:
+def get_image_dims(image) -> Tuple[int, int, int]:
     data_format = get_data_format(image)
     image_height = image.shape[1 if data_format == "NHWC" else 2]
     image_width = image.shape[2 if data_format == "NHWC" else -1]
     image_channels = image.shape[-1 if data_format == "NHWC" else 1]
-    print(image_height, image_width, image_channels)
     return image_height, image_width, image_channels
 
 
@@ -76,7 +73,7 @@ def get_image_dims(image) -> Tuple[int, int]:
 def gaussian_blur(
     image: tf.Tensor,
     std: float,
-    kernel_size: int = None,
+    kernel_size: int,
 ):
     """
     Performs gaussian blurring. If not given, the right kernel size is infered for the given std.
@@ -89,19 +86,16 @@ def gaussian_blur(
     
     h, w, c = get_image_dims(image)
 
-    if kernel_size is None:
-        size = appropriate_kernel_size(std, image_width.value)
-    else:
-        size = kernel_size
+    size = kernel_size
 
     distribution = tfp.distributions.Normal(0, std)
     vals = distribution.prob(tf.range(-(size//2), (size//2)+1, dtype=float))
     kernel = vals / tf.reduce_sum(vals)
-    
-    summary = tf.summary.image(
-        "gaussian_kernel",
-        tf.einsum("i,j->ij", kernel, kernel)[tf.newaxis, :, :, tf.newaxis]
-    )
+    kernel = tf.identity(kernel, name="gaussian_kernel")
+    # summary = tf.summary.image(
+    #     "gaussian_kernel",
+    #     tf.einsum("i,j->ij", kernel, kernel)[tf.newaxis, :, :, tf.newaxis]
+    # )
 
     # expand the kernel to match the requirements of depthsiwe_conv2d
     kernel = kernel[:, tf.newaxis, tf.newaxis, tf.newaxis]
