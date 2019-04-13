@@ -9,50 +9,23 @@ from typing import Tuple
 
 import tfutil
 
-def image_at_scale(images: tf.Tensor, scale: float) -> tf.Tensor:
-    """
 
-    scale: float in range [0, image_resolution]
-    """
-
-    # add the blurring:
-
-    h, w, c = get_image_dims(images)
-    full_resolution = tf.cast(math.maximum(h, w), tf.float32)
-
-    # Ensure maximum element of x is smaller or equal to 1
-    # assert_op = tf.Assert(tf.less_equal(scale, full_resolution), [scale])
-    # with tf.control_dependencies([assert_op]):
-        # std = math.sqrt(scale)
-    std = math.sqrt(scale)
-
-    kernel_size = appropriate_kernel_size(std)
-    # we won't use a kernel bigger than the resolution of the image!
-    kernel_size = tf.clip_by_value(kernel_size, 3, full_resolution)
-    # In case the kernel size was clipped, we make sure to get the right std for that kernel size.
-    # If we don't do this, we might end up with a huge kernel, but with high values even at the edges.
+def maximum_reasonable_std(image_resolution: int) -> float:
+    kernel_size = image_resolution - 1
     std = appropriate_std(kernel_size)
-    with tf.device("cpu:0"), tf.variable_scope("gaussian_blur", reuse=tf.AUTO_REUSE):
-        tf.summary.scalar("kernel_size", kernel_size)
-        tf.summary.scalar("std", std)
-        tf.summary.scalar("scale", scale)
-    # Warn the user if the scale given is larger than what is reasonable.
-    # with tf.control_dependencies([tf.print("scale:", scale, "std:", std, "kernel_size:", kernel_size)]):
-    return gaussian_blur(images, std, kernel_size)
-
-
+    return std
 
 def appropriate_kernel_size(std: float) -> int:
     """
     Returns the appropriate gaussian kernel size to be used for a given standard deviation.
     """
     # nearest odd number to 6*std.
-    return (6* std) * 2 // 2 + 1
+    return (6 * std) * 2 // 2 + 1
 
 
-def appropriate_std(kernel_size: int) -> float:
-    std = (kernel_size-1.) / 6.
-    return tf.maximum(std, 0.1)
+def appropriate_std(kernel_size):
+    std = (kernel_size-1.0) / 6.0
+    return std
 
 def get_data_format(image) -> str:
     if image.shape[-1].value in (1, 3):
@@ -67,6 +40,39 @@ def get_image_dims(image) -> Tuple[int, int, int]:
     image_width = image.shape[2 if data_format == "NHWC" else -1]
     image_channels = image.shape[-1 if data_format == "NHWC" else 1]
     return image_height, image_width, image_channels
+
+def image_at_scale(images: tf.Tensor, scale: float) -> tf.Tensor:
+    """
+
+    scale: float in range [0, image_resolution]
+    """
+
+    # add the blurring:
+
+    h, w, c = get_image_dims(images)
+    full_resolution = tf.cast(tf.math.maximum(h, w), tf.float32)
+
+    # Ensure maximum element of x is smaller or equal to 1
+    # std = math.sqrt(scale)
+    std = scale
+
+    kernel_size = appropriate_kernel_size(std)
+    # we won't use a kernel bigger than the resolution of the image!
+    kernel_size = tf.clip_by_value(kernel_size, 3, full_resolution)
+    
+    # In case the kernel size was clipped, we make sure to get the right std for that kernel size.
+    # If we don't do this, we might end up with a huge kernel, but with high values even at the edges.
+    std = appropriate_std(kernel_size)
+    std = tf.math.maximum(std, 0.01)
+    with tf.device("cpu:0"), tf.variable_scope("gaussian_blur", reuse=tf.AUTO_REUSE):
+        tf.summary.scalar("kernel_size", kernel_size)
+        tf.summary.scalar("std", std)
+        # tf.summary.scalar("scale", scale)
+
+    # Warn the user if the scale given is larger than what is reasonable.
+    # with tf.control_dependencies([tf.print("scale:", scale, "std:", std, "kernel_size:", kernel_size)]):
+    return gaussian_blur(images, std, kernel_size)
+
 
 
 # @tf.function

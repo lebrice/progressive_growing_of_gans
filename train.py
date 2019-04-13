@@ -15,6 +15,8 @@ import tfutil
 import dataset
 import misc
 
+import gaussian_blur
+
 #----------------------------------------------------------------------------
 # Choose the size and contents of the image snapshot grids that are exported
 # periodically during training.
@@ -211,6 +213,7 @@ def train_progressive_gan(
     result_subdir = misc.create_result_subdir(config.result_dir, config.desc)
     misc.save_image_grid(grid_reals, os.path.join(result_subdir, 'reals.png'), drange=training_set.dynamic_range, grid_size=grid_size)
     misc.save_image_grid(grid_fakes, os.path.join(result_subdir, 'fakes%06d.png' % 0), drange=drange_net, grid_size=grid_size)
+    misc.save_image_grid(grid_fakes, os.path.join(result_subdir, 'fakes%06d.png' % 0), drange=drange_net, grid_size=grid_size)
     summary_log = tf.summary.FileWriter(result_subdir)
     if save_tf_graph:
         summary_log.add_graph(tf.get_default_graph())
@@ -225,11 +228,23 @@ def train_progressive_gan(
     train_start_time = tick_start_time - resume_time
     prev_lod = -1.0
 
-    def scale_schedule() -> float:
-        full_res = 128.0
-        t = full_res * (1 - cur_nimg / (total_kimg * 1000))
-        # print(f"curr nimg: {cur_nimg} scale: {t:-3.3f}")
-        return t
+    def scale_schedule(schedule_type="exponential_decay") -> float:
+        """
+        a schedule for the blurring std.
+        """
+        progress_percentage = cur_nimg / (total_kimg * 1000)
+        image_resolution = 128
+
+        initial_value = gaussian_blur.maximum_reasonable_std(image_resolution)
+        final_value = 0.01 # desired value at (total_kimg * 1000) steps.
+        if schedule_type == "exponential_decay":
+            decay_rate = np.log(final_value / initial_value)
+            return initial_value * np.exp(decay_rate * progress_percentage)
+        else:
+            # linear decay from highest STD to lowest std.
+            return (1-progress_percentage) * (initial_value - final_value)
+
+
 
     # TODO: implement the scale schedule
     # with tf.variable_scope("blur", reuse=tf.AUTO_REUSE):
@@ -239,11 +254,6 @@ def train_progressive_gan(
         # Choose training parameters and configure training ops.
         sched = TrainingSchedule(cur_nimg, training_set, **config.sched)
         
-        # tfutil.run([scale.initializer], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch})
-        # def update_scale():
-        #     _scale = scale_schedule()
-        #     tfutil.run([tf.assign(scale, _scale)], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch})
-
         training_set.configure(sched.minibatch, sched.lod)
         if reset_opt_for_new_lod:
             if np.floor(sched.lod) != np.floor(prev_lod) or np.ceil(sched.lod) != np.ceil(prev_lod):
@@ -288,7 +298,11 @@ def train_progressive_gan(
             # Save snapshots.
             if cur_tick % image_snapshot_ticks == 0 or done:
                 grid_fakes = Gs.run(grid_latents, grid_labels, minibatch_size=sched.minibatch//config.num_gpus)
+                misc.save_image_grid(grid_fakes, os.path.join(result_subdir, 'raw_fakes%06d.png' % (cur_nimg // 1000)), drange=drange_net, grid_size=grid_size)
+
+                blurred_fakes = gaussian_blur.image_at_scale(grid_fakes, scale)
                 misc.save_image_grid(grid_fakes, os.path.join(result_subdir, 'fakes%06d.png' % (cur_nimg // 1000)), drange=drange_net, grid_size=grid_size)
+
             if cur_tick % network_snapshot_ticks == 0 or done:
                 misc.save_pkl((G, D, Gs), os.path.join(result_subdir, 'network-snapshot-%06d.pkl' % (cur_nimg // 1000)))
 
