@@ -28,7 +28,8 @@ def appropriate_std(kernel_size):
     return std
 
 def get_data_format(image) -> str:
-    if image.shape[-1].value in (1, 3):
+    last_dim = image.shape[-1].value if isinstance(image, tf.Tensor) else image.shape[-1]
+    if last_dim in (1, 3):
         return "NHWC"
     else:
         return "NCHW"

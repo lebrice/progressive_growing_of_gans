@@ -296,12 +296,12 @@ def train_progressive_gan(
             tfutil.save_summaries(summary_log, cur_nimg, scale=scale_value)
 
             # Save snapshots.
-            if cur_tick % image_snapshot_ticks == 0 or done:
+            if True or cur_tick % image_snapshot_ticks == 0 or done:
                 grid_fakes = Gs.run(grid_latents, grid_labels, minibatch_size=sched.minibatch//config.num_gpus)
                 misc.save_image_grid(grid_fakes, os.path.join(result_subdir, 'raw_fakes%06d.png' % (cur_nimg // 1000)), drange=drange_net, grid_size=grid_size)
-
-                blurred_fakes = gaussian_blur.image_at_scale(grid_fakes, scale)
-                misc.save_image_grid(grid_fakes, os.path.join(result_subdir, 'fakes%06d.png' % (cur_nimg // 1000)), drange=drange_net, grid_size=grid_size)
+                
+                blurred_fakes = tfutil.run([gaussian_blur.image_at_scale(grid_fakes, scale)], {scale: scale_value})
+                misc.save_image_grid(blurred_fakes[0], os.path.join(result_subdir, 'fakes%06d.png' % (cur_nimg // 1000)), drange=drange_net, grid_size=grid_size)
 
             if cur_tick % network_snapshot_ticks == 0 or done:
                 misc.save_pkl((G, D, Gs), os.path.join(result_subdir, 'network-snapshot-%06d.pkl' % (cur_nimg // 1000)))

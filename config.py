@@ -109,7 +109,6 @@ desc += '-fp32'; sched.max_minibatch_per_gpu = {256: 16, 512: 8, 1024: 4}
 
 # Disable individual features.
 desc += '-nogrowing'; sched.lod_initial_resolution = 128; sched.lod_training_kimg = 0; sched.lod_transition_kimg = 0; train.total_kimg = 10000; 
-# desc += '-nogrowing'; sched.lod_initial_resolution = 128; sched.lod_training_kimg = 0; sched.lod_transition_kimg = 0; train.total_kimg = 10000; 
 #desc += '-nopixelnorm'; G.use_pixelnorm = False
 #desc += '-nowscale'; G.use_wscale = False; D.use_wscale = False
 #desc += '-noleakyrelu'; G.use_leakyrelu = False
