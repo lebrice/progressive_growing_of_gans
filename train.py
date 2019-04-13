@@ -296,7 +296,7 @@ def train_progressive_gan(
             tfutil.save_summaries(summary_log, cur_nimg, scale=scale_value)
 
             # Save snapshots.
-            if True or cur_tick % image_snapshot_ticks == 0 or done:
+            if cur_tick % image_snapshot_ticks == 0 or done:
                 grid_fakes = Gs.run(grid_latents, grid_labels, minibatch_size=sched.minibatch//config.num_gpus)
                 misc.save_image_grid(grid_fakes, os.path.join(result_subdir, 'raw_fakes%06d.png' % (cur_nimg // 1000)), drange=drange_net, grid_size=grid_size)
                 
