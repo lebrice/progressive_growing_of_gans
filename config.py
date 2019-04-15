@@ -15,6 +15,9 @@ class EasyDict(dict):
     def __setattr__(self, name, value): self[name] = value
     def __delattr__(self, name): del self[name]
 
+from datetime import datetime, timedelta
+from train import BlurScheduleType
+
 #----------------------------------------------------------------------------
 # Paths.
 
@@ -29,7 +32,7 @@ tf_config = EasyDict()  # TensorFlow session config, set by tfutil.init_tf().
 env = EasyDict()        # Environment variables, set by the main program in train.py.
 
 tf_config['graph_options.place_pruned_graph']   = True      # False (default) = Check that all ops are available on the designated device. True = Skip the check for ops that are not used.
-#tf_config['gpu_options.allow_growth']          = False     # False (default) = Allocate all GPU memory at the beginning. True = Allocate only as much GPU memory as needed.
+tf_config['gpu_options.allow_growth']          = True     # False (default) = Allocate all GPU memory at the beginning. True = Allocate only as much GPU memory as needed.
 #env.CUDA_VISIBLE_DEVICES                       = '0'       # Unspecified (default) = Use all available GPUs. List of ints = CUDA device numbers to use.
 env.TF_CPP_MIN_LOG_LEVEL                        = '1'       # 0 (default) = Print all available debug info from TensorFlow. 1 = Print warnings and errors, but disable debug info.
 
@@ -40,7 +43,7 @@ env.TF_CPP_MIN_LOG_LEVEL                        = '1'       # 0 (default) = Prin
 desc        = 'pgan'                                        # Description string included in result subdir name.
 random_seed = 1000                                          # Global random seed.
 dataset     = EasyDict()                                    # Options for dataset.load_dataset().
-train       = EasyDict(func='train.train_progressive_gan', resume_run_id=None)  # Options for main training func.
+train       = EasyDict(func='train.train_progressive_gan', resume_run_id=17, resume_kimg=524.3, resume_time=timedelta(hours=16, minutes=27, seconds=21).total_seconds())  # Options for main training func.
 G           = EasyDict(func='networks.G_paper')             # Options for generator network.
 D           = EasyDict(func='networks.D_paper')             # Options for discriminator network.
 G_opt       = EasyDict(beta1=0.0, beta2=0.99, epsilon=1e-8) # Options for generator optimizer.
@@ -116,7 +119,9 @@ desc += '-nogrowing'; sched.lod_initial_resolution = 128; sched.lod_training_kim
 #desc += '-norepeat'; train.minibatch_repeats = 1
 #desc += '-noreset'; train.reset_opt_for_new_lod = False
 
-desc += "-EXPDECAY"
+# desc += "-BLUR-NONE"; train.blur_schedule_type = BlurScheduleType.NONE
+desc += "-BLUR-LINEAR"; train.blur_schedule_type = BlurScheduleType.LINEAR
+# desc += "-BLUR-EXPDECAY"; train.blur_schedule_type = BlurScheduleType.EXPONENTIAL_DECAY
 train.total_kimg = 1000
 sched.lod_initial_resolution = 128
 sched.tick_kimg_base = 1
@@ -135,7 +140,7 @@ train.network_snapshot_ticks = 50
 #----------------------------------------------------------------------------
 # Utility scripts.
 # To run, uncomment the appropriate line and launch train.py.
-best_run_id = 9
+best_run_id = 13
 #train = EasyDict(func='util_scripts.generate_fake_images', run_id=best_run_id, num_pngs=1000); num_gpus = 1; desc = 'fake-images-' + str(train.run_id)
 #train = EasyDict(func='util_scripts.generate_fake_images', run_id=best_run_id, grid_size=[15,8], num_pngs=10, image_shrink=4); num_gpus = 1; desc = 'fake-grids-' + str(train.run_id)
 #train = EasyDict(func='util_scripts.generate_interpolation_video', run_id=best_run_id, grid_size=[1,1], duration_sec=60.0, smoothing_sec=1.0); num_gpus = 1; desc = 'interpolation-video-' + str(train.run_id)

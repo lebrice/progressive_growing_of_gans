@@ -16,7 +16,13 @@ import dataset
 import misc
 
 import gaussian_blur
+from enum import Enum
 
+
+class BlurScheduleType(Enum):
+    NONE = 0
+    LINEAR = 1
+    EXPONENTIAL_DECAY = 2
 #----------------------------------------------------------------------------
 # Choose the size and contents of the image snapshot grids that are exported
 # periodically during training.
@@ -147,7 +153,9 @@ def train_progressive_gan(
     resume_run_id           = None,         # Run ID or network pkl to resume training from, None = start from scratch.
     resume_snapshot         = None,         # Snapshot index to resume training from, None = autodetect.
     resume_kimg             = 0.0,          # Assumed training progress at the beginning. Affects reporting and training schedule.
-    resume_time             = 0.0):         # Assumed wallclock time at the beginning. Affects reporting.
+    resume_time             = 0.0,           # Assumed wallclock time at the beginning. Affects reporting.
+    blur_schedule_type: BlurScheduleType = BlurScheduleType.NONE,
+    ):         
 
     maintenance_start_time = time.time()
     training_set = dataset.load_dataset(data_dir=config.data_dir, verbose=True, **config.dataset)
@@ -170,7 +178,7 @@ def train_progressive_gan(
 
     with tf.name_scope('Inputs'):
         default_scale = tf.constant(0.0)
-        print_op = tf.print("default scaled was used", default_scale)
+        print_op = tf.print("default scaled was used (no blurring)", default_scale)
         with tf.control_dependencies([print_op]):
             default_scale = tf.identity(default_scale)
 
@@ -213,7 +221,6 @@ def train_progressive_gan(
     result_subdir = misc.create_result_subdir(config.result_dir, config.desc)
     misc.save_image_grid(grid_reals, os.path.join(result_subdir, 'reals.png'), drange=training_set.dynamic_range, grid_size=grid_size)
     misc.save_image_grid(grid_fakes, os.path.join(result_subdir, 'fakes%06d.png' % 0), drange=drange_net, grid_size=grid_size)
-    misc.save_image_grid(grid_fakes, os.path.join(result_subdir, 'fakes%06d.png' % 0), drange=drange_net, grid_size=grid_size)
     summary_log = tf.summary.FileWriter(result_subdir)
     if save_tf_graph:
         summary_log.add_graph(tf.get_default_graph())
@@ -228,7 +235,7 @@ def train_progressive_gan(
     train_start_time = tick_start_time - resume_time
     prev_lod = -1.0
 
-    def scale_schedule(schedule_type="exponential_decay") -> float:
+    def scale_schedule() -> float:
         """
         a schedule for the blurring std.
         """
@@ -237,13 +244,15 @@ def train_progressive_gan(
 
         initial_value = gaussian_blur.maximum_reasonable_std(image_resolution)
         final_value = 0.01 # desired value at (total_kimg * 1000) steps.
-        if schedule_type == "exponential_decay":
+        if blur_schedule_type == BlurScheduleType.EXPONENTIAL_DECAY:
             decay_rate = np.log(final_value / initial_value)
             return initial_value * np.exp(decay_rate * progress_percentage)
-        else:
+        elif blur_schedule_type == BlurScheduleType.LINEAR:
             # linear decay from highest STD to lowest std.
-            return (1-progress_percentage) * (initial_value - final_value)
-
+            return initial_value + progress_percentage * (final_value - initial_value)
+        else:
+            # No blurring.
+            return 0
 
 
     # TODO: implement the scale schedule
