@@ -11,18 +11,13 @@ import numpy as np
 import tensorflow as tf
 
 import config
+from config import BlurScheduleType
 import tfutil
 import dataset
 import misc
 
 import gaussian_blur
-from enum import Enum
 
-
-class BlurScheduleType(Enum):
-    NONE = 0
-    LINEAR = 1
-    EXPONENTIAL_DECAY = 2
 #----------------------------------------------------------------------------
 # Choose the size and contents of the image snapshot grids that are exported
 # periodically during training.
