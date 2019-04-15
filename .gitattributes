@@ -1,0 +1,9 @@
+*.tfrecords filter=lfs diff=lfs merge=lfs -text
+datasets/ filter=lfs diff=lfs merge=lfs -text
+datasets/celeba filter=lfs diff=lfs merge=lfs -text
+datasets/celeba/celeba-r03.tfrecords filter=lfs diff=lfs merge=lfs -text
+datasets/celeba/celeba-r04.tfrecords filter=lfs diff=lfs merge=lfs -text
+datasets/celeba/celeba-r05.tfrecords filter=lfs diff=lfs merge=lfs -text
+datasets/celeba/celeba-r06.tfrecords filter=lfs diff=lfs merge=lfs -text
+datasets/celeba/celeba-r07.tfrecords filter=lfs diff=lfs merge=lfs -text
+datasets/celeba/celeba-r02.tfrecords filter=lfs diff=lfs merge=lfs -text
