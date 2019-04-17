@@ -30,10 +30,10 @@ class BlurScheduleType(Enum):
 from socket import gethostname
 
 # my basement computer's hostname is Brigitte.
-using_mila_cluster = gethostname() == "Brigitte" 
+using_mila_cluster = gethostname() != "Brigitte" 
 print("Using the MILA cluster?", using_mila_cluster)
 
-data_dir = "datasets"
+data_dir = "/Tmp/pichetre/datasets"
 
 result_dir = "E:/Google Drive/progressive_growing"
 celeba_tfrecords_dir = "c:/celeba"
@@ -61,9 +61,9 @@ random_seed = 1000                                          # Global random seed
 dataset     = EasyDict()                                    # Options for dataset.load_dataset().
 train       = EasyDict(
     func='train.train_progressive_gan',
-    resume_run_id=17,
-    resume_kimg=524.3,
-    resume_time=timedelta(hours=16, minutes=27, seconds=21).total_seconds(),
+    #resume_run_id=17,
+    #resume_kimg=524.3,
+    #resume_time=timedelta(hours=16, minutes=27, seconds=21).total_seconds(),
 )  # Options for main training func.
 G           = EasyDict(func='networks.G_paper')             # Options for generator network.
 D           = EasyDict(func='networks.D_paper')             # Options for discriminator network.
@@ -166,6 +166,7 @@ sched.tick_kimg_dict = {}
 train.image_snapshot_ticks = 10
 train.network_snapshot_ticks = 50
 
+#desc += "-TEST"; train.total_kimg = 10;
 
 # Special modes.
 #desc += '-BENCHMARK'; sched.lod_initial_resolution = 4; sched.lod_training_kimg = 3; sched.lod_transition_kimg = 3; train.total_kimg = (8*2+1)*3; sched.tick_kimg_base = 1; sched.tick_kimg_dict = {}; train.image_snapshot_ticks = 1000; train.network_snapshot_ticks = 1000
