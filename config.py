@@ -21,14 +21,25 @@ from enum import Enum
 class BlurScheduleType(Enum):
     NONE = 0
     LINEAR = 1
-    EXPONENTIAL_DECAY = 2
+    EXPONENTIAL_DECAY = 2,
+    RANDOM = 3,
 
 #----------------------------------------------------------------------------
 # Paths.
 
-data_dir = 'datasets'
-result_dir = 'results'
-result_dir = "E:\Google Drive\progressive_growing"
+from socket import gethostname
+
+# my basement computer's hostname is Brigitte.
+using_mila_cluster = gethostname() == "Brigitte" 
+print("Using the MILA cluster?", using_mila_cluster)
+
+data_dir = "datasets"
+
+result_dir = "E:/Google Drive/progressive_growing"
+celeba_tfrecords_dir = "c:/celeba"
+if using_mila_cluster:
+    result_dir = "~/IFT6085/progressive_growing_of_gans/results"
+    celeba_tfrecords_dir = "/Tmp/pichetre/datasets/celeba"
 
 #----------------------------------------------------------------------------
 # TensorFlow options.
@@ -48,7 +59,12 @@ env.TF_CPP_MIN_LOG_LEVEL                        = '1'       # 0 (default) = Prin
 desc        = 'pgan'                                        # Description string included in result subdir name.
 random_seed = 1000                                          # Global random seed.
 dataset     = EasyDict()                                    # Options for dataset.load_dataset().
-train       = EasyDict(func='train.train_progressive_gan', resume_run_id=17, resume_kimg=524.3, resume_time=timedelta(hours=16, minutes=27, seconds=21).total_seconds())  # Options for main training func.
+train       = EasyDict(
+    func='train.train_progressive_gan',
+    resume_run_id=17,
+    resume_kimg=524.3,
+    resume_time=timedelta(hours=16, minutes=27, seconds=21).total_seconds(),
+)  # Options for main training func.
 G           = EasyDict(func='networks.G_paper')             # Options for generator network.
 D           = EasyDict(func='networks.D_paper')             # Options for discriminator network.
 G_opt       = EasyDict(beta1=0.0, beta2=0.99, epsilon=1e-8) # Options for generator optimizer.
@@ -60,7 +76,7 @@ grid        = EasyDict(size='1080p', layout='random')       # Options for train.
 
 # Dataset (choose one).
 # desc += '-celebahq';            dataset = EasyDict(tfrecord_dir='celebahq'); train.mirror_augment = True
-desc += '-celeba';              dataset = EasyDict(tfrecord_dir='c:/celeba'); train.mirror_augment = True
+desc += '-celeba';              dataset = EasyDict(tfrecord_dir=celeba_tfrecords_dir); train.mirror_augment = True
 #desc += '-cifar10';             dataset = EasyDict(tfrecord_dir='cifar10')
 #desc += '-cifar100';            dataset = EasyDict(tfrecord_dir='cifar100')
 #desc += '-svhn';                dataset = EasyDict(tfrecord_dir='svhn')
@@ -107,10 +123,11 @@ desc += '-celeba';              dataset = EasyDict(tfrecord_dir='c:/celeba'); tr
 
 def find_num_gpus() -> int:
     from tensorflow.python.client import device_lib
-    def get_available_gpus():
-        local_device_protos = device_lib.list_local_devices()
-        return [x.name for x in local_device_protos if x.device_type == 'GPU']
-    return len(get_available_gpus())
+    from tensorflow import ConfigProto
+    config = ConfigProto()
+    config.gpu_options.allow_growth = True
+    local_device_protos = device_lib.list_local_devices(config)
+    return len([x.name for x in local_device_protos if x.device_type == 'GPU'])
 
 # Config presets (choose one).
 #desc += '-preset-v1-1gpu'; num_gpus = 1; D.mbstd_group_size = 16; sched.minibatch_base = 16; sched.minibatch_dict = {256: 14, 512: 6, 1024: 3}; sched.lod_training_kimg = 800; sched.lod_transition_kimg = 800; train.total_kimg = 19000
@@ -141,7 +158,8 @@ desc += '-nogrowing'; sched.lod_initial_resolution = 128; sched.lod_training_kim
 # desc += "-BLUR-NONE"; train.blur_schedule_type = BlurScheduleType.NONE
 desc += "-BLUR-LINEAR"; train.blur_schedule_type = BlurScheduleType.LINEAR
 # desc += "-BLUR-EXPDECAY"; train.blur_schedule_type = BlurScheduleType.EXPONENTIAL_DECAY
-train.total_kimg = 1000
+# desc += "-BLUR-RANDOM"; train.blur_schedule_type = BlurScheduleType.RANDOM
+train.total_kimg = 1_000
 sched.lod_initial_resolution = 128
 sched.tick_kimg_base = 1
 sched.tick_kimg_dict = {}
@@ -159,7 +177,7 @@ train.network_snapshot_ticks = 50
 #----------------------------------------------------------------------------
 # Utility scripts.
 # To run, uncomment the appropriate line and launch train.py.
-best_run_id = 13
+best_run_id = 19
 #train = EasyDict(func='util_scripts.generate_fake_images', run_id=best_run_id, num_pngs=1000); num_gpus = 1; desc = 'fake-images-' + str(train.run_id)
 #train = EasyDict(func='util_scripts.generate_fake_images', run_id=best_run_id, grid_size=[15,8], num_pngs=10, image_shrink=4); num_gpus = 1; desc = 'fake-grids-' + str(train.run_id)
 #train = EasyDict(func='util_scripts.generate_interpolation_video', run_id=best_run_id, grid_size=[1,1], duration_sec=60.0, smoothing_sec=1.0); num_gpus = 1; desc = 'interpolation-video-' + str(train.run_id)

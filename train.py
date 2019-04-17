@@ -245,6 +245,8 @@ def train_progressive_gan(
         elif blur_schedule_type == BlurScheduleType.LINEAR:
             # linear decay from highest STD to lowest std.
             return initial_value + progress_percentage * (final_value - initial_value)
+        elif blur_schedule_type == BlurScheduleType.RANDOM:
+            return np.random.uniform(final_value, initial_value)
         else:
             # No blurring.
             return 0
