@@ -156,8 +156,8 @@ desc += '-nogrowing'; sched.lod_initial_resolution = 128; sched.lod_training_kim
 #desc += '-noreset'; train.reset_opt_for_new_lod = False
 
 # desc += "-BLUR-NONE"; train.blur_schedule_type = BlurScheduleType.NONE
-desc += "-BLUR-LINEAR"; train.blur_schedule_type = BlurScheduleType.LINEAR
-# desc += "-BLUR-EXPDECAY"; train.blur_schedule_type = BlurScheduleType.EXPONENTIAL_DECAY
+# desc += "-BLUR-LINEAR"; train.blur_schedule_type = BlurScheduleType.LINEAR
+desc += "-BLUR-EXPDECAY"; train.blur_schedule_type = BlurScheduleType.EXPONENTIAL_DECAY
 # desc += "-BLUR-RANDOM"; train.blur_schedule_type = BlurScheduleType.RANDOM
 train.total_kimg = 1_000
 sched.lod_initial_resolution = 128
@@ -166,7 +166,7 @@ sched.tick_kimg_dict = {}
 train.image_snapshot_ticks = 10
 train.network_snapshot_ticks = 50
 
-#desc += "-TEST"; train.total_kimg = 10;
+desc += "-TEST"; train.total_kimg = 10;
 
 # Special modes.
 #desc += '-BENCHMARK'; sched.lod_initial_resolution = 4; sched.lod_training_kimg = 3; sched.lod_transition_kimg = 3; train.total_kimg = (8*2+1)*3; sched.tick_kimg_base = 1; sched.tick_kimg_dict = {}; train.image_snapshot_ticks = 1000; train.network_snapshot_ticks = 1000
