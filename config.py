@@ -155,11 +155,11 @@ desc += '-nogrowing'; sched.lod_initial_resolution = 128; sched.lod_training_kim
 #desc += '-norepeat'; train.minibatch_repeats = 1
 #desc += '-noreset'; train.reset_opt_for_new_lod = False
 
-# desc += "-BLUR-NONE"; train.blur_schedule_type = BlurScheduleType.NONE
-desc += "-BLUR-LINEAR"; train.blur_schedule_type = BlurScheduleType.LINEAR
+desc += "-BLUR-NONE"; train.blur_schedule_type = BlurScheduleType.NONE
+# desc += "-BLUR-LINEAR"; train.blur_schedule_type = BlurScheduleType.LINEAR
 # desc += "-BLUR-EXPDECAY"; train.blur_schedule_type = BlurScheduleType.EXPONENTIAL_DECAY
 # desc += "-BLUR-RANDOM"; train.blur_schedule_type = BlurScheduleType.RANDOM
-train.total_kimg = 1_000
+train.total_kimg = 10_000
 sched.lod_initial_resolution = 128
 sched.tick_kimg_base = 1
 sched.tick_kimg_dict = {}
