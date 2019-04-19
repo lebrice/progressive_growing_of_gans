@@ -4,4 +4,5 @@
 #SBATCH --mem=16G
 #SBATCH --time=1-00:00
 cd ~/IFT6085/progressive_growing_of_gans
-bash train.sh LINEAR 10
+source ./train.sh 
+train LINEAR 10
