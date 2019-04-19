@@ -361,7 +361,7 @@ if __name__ == "__main__":
     if args.run_name:
         config.desc = args.run_name
     else:
-        config.desc += f"-{config.sched.blur_schedule_type}"
+        config.desc += f"-{config.sched.blur_schedule_type.value}"
     
     print("config desc:", config.desc)    
     config.train.total_kimg = args.train_k_images
