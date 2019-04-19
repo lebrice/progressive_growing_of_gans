@@ -51,7 +51,7 @@ env = EasyDict()        # Environment variables, set by the main program in trai
 tf_config['graph_options.place_pruned_graph']   = True      # False (default) = Check that all ops are available on the designated device. True = Skip the check for ops that are not used.
 tf_config['gpu_options.allow_growth']          = True     # False (default) = Allocate all GPU memory at the beginning. True = Allocate only as much GPU memory as needed.
 #env.CUDA_VISIBLE_DEVICES                       = '0'       # Unspecified (default) = Use all available GPUs. List of ints = CUDA device numbers to use.
-env.TF_CPP_MIN_LOG_LEVEL                        = '1'       # 0 (default) = Print all available debug info from TensorFlow. 1 = Print warnings and errors, but disable debug info.
+env.TF_CPP_MIN_LOG_LEVEL                        = '2'       # 0 (default) = Print all available debug info from TensorFlow. 1 = Print warnings and errors, but disable debug info.
 
 #----------------------------------------------------------------------------
 # Official training configs, targeted mainly for CelebA-HQ.
@@ -118,11 +118,17 @@ desc += '-celeba';              dataset = EasyDict(tfrecord_dir=celeba_tfrecords
 
 
 def find_num_gpus() -> int:
-    from tensorflow.python.client import device_lib
-    from tensorflow import ConfigProto
-    config = ConfigProto()
-    config.gpu_options.allow_growth = True
-    local_device_protos = device_lib.list_local_devices(config)
+    from os import environ 
+    loglevel = environ.get("TF_CPP_MIN_LOG_LEVEL", "0")
+    try:
+        environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+        from tensorflow.python.client import device_lib
+        from tensorflow import ConfigProto
+        config = ConfigProto()
+        config.gpu_options.allow_growth = True
+        local_device_protos = device_lib.list_local_devices(config)
+    finally:
+        environ["TF_CPP_MIN_LOG_LEVEL"] = loglevel
     return len([x.name for x in local_device_protos if x.device_type == 'GPU'])
 
 # Config presets (choose one).
@@ -155,7 +161,7 @@ desc += '-nogrowing'; sched.lod_initial_resolution = 128; sched.lod_training_kim
 # desc += "-BLUR-LINEAR";   train.blur_schedule_type = BlurScheduleType.LINEAR
 # desc += "-BLUR-EXPDECAY"; train.blur_schedule_type = BlurScheduleType.EXPONENTIAL_DECAY
 # desc += "-BLUR-RANDOM";   train.blur_schedule_type = BlurScheduleType.RANDOM
-train.total_kimg = 1_000
+train.total_kimg = 1_000 
 sched.lod_initial_resolution = 128
 sched.tick_kimg_base = 1
 sched.tick_kimg_dict = {}
@@ -173,17 +179,17 @@ train.network_snapshot_ticks = 50
 
 #----------------------------------------------------------------------------
 # Utility scripts.
-# To run, uncomment the appropriate line and launch train.py.
-best_run_id = 19
-#train = EasyDict(func='util_scripts.generate_fake_images', run_id=best_run_id, num_pngs=1000); num_gpus = 1; desc = 'fake-images-' + str(train.run_id)
-#train = EasyDict(func='util_scripts.generate_fake_images', run_id=best_run_id, grid_size=[15,8], num_pngs=10, image_shrink=4); num_gpus = 1; desc = 'fake-grids-' + str(train.run_id)
-#train = EasyDict(func='util_scripts.generate_interpolation_video', run_id=best_run_id, grid_size=[1,1], duration_sec=60.0, smoothing_sec=1.0); num_gpus = 1; desc = 'interpolation-video-' + str(train.run_id)
-# train = EasyDict(func='util_scripts.generate_training_video', run_id=best_run_id, duration_sec=20.0); num_gpus = 1; desc = 'training-video-' + str(train.run_id)
+# To run, uncomment the appropriate line and launch util_scripts.py.
+best_run_id = 20
+#scripts = EasyDict(func='util_scripts.generate_fake_images', run_id=best_run_id, num_pngs=1000); num_gpus = 1; desc = 'fake-images-' + str(scripts.run_id)
+#scripts = EasyDict(func='util_scripts.generate_fake_images', run_id=best_run_id, grid_size=[15,8], num_pngs=10, image_shrink=4); num_gpus = 1; desc = 'fake-grids-' + str(scripts.run_id)
+#scripts = EasyDict(func='util_scripts.generate_interpolation_video', run_id=best_run_id, grid_size=[1,1], duration_sec=60.0, smoothing_sec=1.0); num_gpus = 1; desc = 'interpolation-video-' + str(scripts.run_id)
+# scripts = EasyDict(func='util_scripts.generate_training_video', run_id=best_run_id, duration_sec=20.0); num_gpus = 1; desc = 'training-video-' + str(scripts.run_id)
 
-#train = EasyDict(func='util_scripts.evaluate_metrics', run_id=best_run_id, log='metric-swd-16k.txt', metrics=['swd'], num_images=16384, real_passes=2); num_gpus = 1; desc = train.log.split('.')[0] + '-' + str(train.run_id)
-# train = EasyDict(func='util_scripts.evaluate_metrics', run_id=best_run_id, log='metric-fid-10k.txt', metrics=['fid'], num_images=10000, real_passes=1); num_gpus = 1; desc = train.log.split('.')[0] + '-' + str(train.run_id)
-#train = EasyDict(func='util_scripts.evaluate_metrics', run_id=best_run_id, log='metric-fid-50k.txt', metrics=['fid'], num_images=50000, real_passes=1); num_gpus = 1; desc = train.log.split('.')[0] + '-' + str(train.run_id)
-#train = EasyDict(func='util_scripts.evaluate_metrics', run_id=best_run_id, log='metric-is-50k.txt', metrics=['is'], num_images=50000, real_passes=1); num_gpus = 1; desc = train.log.split('.')[0] + '-' + str(train.run_id)
-#train = EasyDict(func='util_scripts.evaluate_metrics', run_id=best_run_id, log='metric-msssim-20k.txt', metrics=['msssim'], num_images=20000, real_passes=1); num_gpus = 1; desc = train.log.split('.')[0] + '-' + str(train.run_id)
+#scripts = EasyDict(func='util_scripts.evaluate_metrics', run_id=best_run_id, log='metric-swd-16k.txt', metrics=['swd'], num_images=16384, real_passes=2); num_gpus = 1; desc = scripts.log.split('.')[0] + '-' + str(scripts.run_id)
+scripts = EasyDict(func='util_scripts.evaluate_metrics', run_id=best_run_id, log='metric-fid-10k.txt', metrics=['fid'], num_images=10000, real_passes=1); num_gpus = 1; desc = scripts.log.split('.')[0] + '-' + str(scripts.run_id)
+#scripts = EasyDict(func='util_scripts.evaluate_metrics', run_id=best_run_id, log='metric-fid-50k.txt', metrics=['fid'], num_images=50000, real_passes=1); num_gpus = 1; desc = scripts.log.split('.')[0] + '-' + str(scripts.run_id)
+#scripts = EasyDict(func='util_scripts.evaluate_metrics', run_id=best_run_id, log='metric-is-50k.txt', metrics=['is'], num_images=50000, real_passes=1); num_gpus = 1; desc = scripts.log.split('.')[0] + '-' + str(scripts.run_id)
+#scripts = EasyDict(func='util_scripts.evaluate_metrics', run_id=best_run_id, log='metric-msssim-20k.txt', metrics=['msssim'], num_images=20000, real_passes=1); num_gpus = 1; desc = scripts.log.split('.')[0] + '-' + str(scripts.run_id)
 
 #----------------------------------------------------------------------------

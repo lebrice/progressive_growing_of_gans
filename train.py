@@ -101,7 +101,9 @@ class TrainingSchedule:
         D_lrate_base            = 0.001,    # Learning rate for the discriminator.
         D_lrate_dict            = {},       # Resolution-specific overrides.
         tick_kimg_base          = 160,      # Default interval of progress snapshots.
-        tick_kimg_dict          = {4: 160, 8:140, 16:120, 32:100, 64:80, 128:60, 256:40, 512:20, 1024:10}): # Resolution-specific overrides.
+        tick_kimg_dict          = {4: 160, 8:140, 16:120, 32:100, 64:80, 128:60, 256:40, 512:20, 1024:10}, # Resolution-specific overrides.
+        blur_schedule_type: BlurScheduleType = BlurScheduleType.NOBLUR,
+        ): 
 
         # Training phase.
         self.kimg = cur_nimg / 1000.0
@@ -129,6 +131,8 @@ class TrainingSchedule:
         self.D_lrate = D_lrate_dict.get(self.resolution, D_lrate_base)
         self.tick_kimg = tick_kimg_dict.get(self.resolution, tick_kimg_base)
 
+        self.blur_schedule_type = blur_schedule_type
+
 #----------------------------------------------------------------------------
 # Main training script.
 # To run, comment/uncomment appropriate lines in config.py and launch train.py.
@@ -150,7 +154,6 @@ def train_progressive_gan(
     resume_kimg             = 0.0,          # Assumed training progress at the beginning. Affects reporting and training schedule.
     resume_time             = 0.0,           # Assumed wallclock time at the beginning. Affects reporting.
     resume_tick: int = 0,
-    blur_schedule_type: BlurScheduleType = BlurScheduleType.NOBLUR,
     ):         
 
     maintenance_start_time = time.time()
@@ -240,13 +243,13 @@ def train_progressive_gan(
 
         initial_value = gaussian_blur.maximum_reasonable_std(image_resolution)
         final_value = 0.01 # desired value at (total_kimg * 1000) steps.
-        if blur_schedule_type == BlurScheduleType.EXPONENTIAL_DECAY:
+        if sched.blur_schedule_type == BlurScheduleType.EXPONENTIAL_DECAY:
             decay_rate = np.log(final_value / initial_value)
             return initial_value * np.exp(decay_rate * progress_percentage)
-        elif blur_schedule_type == BlurScheduleType.LINEAR:
+        elif sched.blur_schedule_type == BlurScheduleType.LINEAR:
             # linear decay from highest STD to lowest std.
             return initial_value + progress_percentage * (final_value - initial_value)
-        elif blur_schedule_type == BlurScheduleType.RANDOM:
+        elif sched.blur_schedule_type == BlurScheduleType.RANDOM:
             return np.random.uniform(final_value, initial_value)
         else:
             # No blurring.
@@ -341,7 +344,7 @@ if __name__ == "__main__":
     parser.add_argument("--resume-run-id", type=int, default=None)
     parser.add_argument("--run-name", type=str)
     parser.add_argument("-b", "--blur-schedule", type=str, choices=["NOBLUR", "LINEAR", "EXPDECAY", "RANDOM"], default=BlurScheduleType.NOBLUR)
-    parser.add_argument("-nimg", "--train-k-images", type=int, default=config.train.total_kimg)
+    parser.add_argument("-nimg", "--train-k-images", type=int, default=1_000)
     
     args = parser.parse_args(argv[1:])
     print("Arguments used:", args)
@@ -357,9 +360,9 @@ if __name__ == "__main__":
             # we are starting a new training run from previous weights.
             config.desc = args.run_name
 
-    config.train.blur_schedule_type = BlurScheduleType(args.blur_schedule)
+    config.sched.blur_schedule_type = BlurScheduleType(args.blur_schedule)
     config.train.total_kimg = args.train_k_images
-    
+
     misc.init_output_logging()
     np.random.seed(config.random_seed)
     print('Initializing TensorFlow...')

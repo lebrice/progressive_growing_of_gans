@@ -255,7 +255,7 @@ def load_dataset_for_previous_run(run_id, **kwargs): # => dataset_obj, mirror_au
     result_subdir = locate_result_subdir(run_id)
 
     # Parse config.txt.
-    parsed_cfg = parse_config_txt()
+    parsed_cfg = parse_config_txt(run_id)
     dataset_cfg = parsed_cfg.get('dataset', dict())
     train_cfg = parsed_cfg.get('train', dict())
     mirror_augment = train_cfg.get('mirror_augment', False)
@@ -353,12 +353,14 @@ def parse_config_txt(run_id) -> dict:
                 try:
                     exec(line, parsed_cfg, parsed_cfg)
                 except SyntaxError as e:
-                    print(line)
                     b = re.search(r", 'blur_schedule_type': <BlurScheduleType\.((.+): ?('?(.+))'?)>", line)
                     if b and line.startswith("train ="):
                         line = line.replace(b.group(0), "")
                         exec(line, parsed_cfg, parsed_cfg)
-                        blur_type = config.BlurScheduleType(b.group(2))
+                        blur_type_str = b.group(2)
+                        if blur_type_str == "NONE":
+                            blur_type_str = "NOBLUR"
+                        blur_type = config.BlurScheduleType(blur_type_str)
                         parsed_cfg.train = config.EasyDict(parsed_cfg.train)
                         parsed_cfg.train.blur_schedule_type = blur_type
                         continue
