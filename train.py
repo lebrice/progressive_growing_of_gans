@@ -357,7 +357,10 @@ if __name__ == "__main__":
         misc.restore_config(args.resume_run_id, config)
     if args.run_name:
         config.desc = args.run_name
+    else:
+        config.desc += config.sched.blur_schedule_type
 
+    print("config desc:", config.desc)
     config.sched.blur_schedule_type = BlurScheduleType(args.blur_schedule)
     print("Chosen blur schedule type: ", config.sched.blur_schedule_type)
     config.train.total_kimg = args.train_k_images

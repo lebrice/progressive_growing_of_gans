@@ -9,5 +9,3 @@ git checkout master
 git pull
 
 cp -r --no-clobber datasets /Tmp/pichetre/ -v
-
-# python ./train.py --run-name TEST --blur-schedule $1 --train-k-images ${$2:1000}

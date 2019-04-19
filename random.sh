@@ -5,4 +5,4 @@
 #SBATCH --time=1-00:00
 cd ~/IFT6085/progressive_growing_of_gans
 . ./setup.sh
-python ./train.py --blur-schedule EXPDECAY --train-k-images 1000
+python ./train.py --blur-schedule RANDOM --train-k-images 1000
