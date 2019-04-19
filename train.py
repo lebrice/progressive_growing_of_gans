@@ -352,15 +352,14 @@ if __name__ == "__main__":
     
     print("run_name:", args.run_name)
     
-    if args.resume_run_id is not None:
-        if args.run_name is None:
-            # we are resuming a previous training session.
-            misc.restore_config(args.resume_run_id, config)
-        if args.run_name:
-            # we are starting a new training run from previous weights.
-            config.desc = args.run_name
+    if args.resume_run_id:
+        # we are resuming a previous training session.
+        misc.restore_config(args.resume_run_id, config)
+    if args.run_name:
+        config.desc = args.run_name
 
     config.sched.blur_schedule_type = BlurScheduleType(args.blur_schedule)
+    print("Chosen blur schedule type: ", config.sched.blur_schedule_type)
     config.train.total_kimg = args.train_k_images
 
     misc.init_output_logging()
