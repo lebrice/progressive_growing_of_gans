@@ -149,6 +149,7 @@ def train_progressive_gan(
     resume_snapshot         = None,         # Snapshot index to resume training from, None = autodetect.
     resume_kimg             = 0.0,          # Assumed training progress at the beginning. Affects reporting and training schedule.
     resume_time             = 0.0,           # Assumed wallclock time at the beginning. Affects reporting.
+    resume_tick: int = 0,
     blur_schedule_type: BlurScheduleType = BlurScheduleType.NOBLUR,
     ):         
 
@@ -224,7 +225,7 @@ def train_progressive_gan(
 
     print('Training...')
     cur_nimg = int(resume_kimg * 1000)
-    cur_tick = 0
+    cur_tick = resume_tick
     tick_start_nimg = cur_nimg
     tick_start_time = time.time()
     train_start_time = tick_start_time - resume_time
@@ -349,15 +350,16 @@ if __name__ == "__main__":
     print("run_name:", args.run_name)
     
     if args.resume_run_id is not None:
-        misc.restore_config(args.resume_run_id, config)
-    
+        if args.run_name is None:
+            # we are resuming a previous training session.
+            misc.restore_config(args.resume_run_id, config)
         if args.run_name:
+            # we are starting a new training run from previous weights.
             config.desc = args.run_name
 
     config.train.blur_schedule_type = BlurScheduleType(args.blur_schedule)
     config.train.total_kimg = args.train_k_images
     
-
     misc.init_output_logging()
     np.random.seed(config.random_seed)
     print('Initializing TensorFlow...')

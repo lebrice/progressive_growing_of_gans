@@ -24,6 +24,7 @@ class BlurScheduleType(Enum):
     EXPONENTIAL_DECAY = "EXPDECAY"
     RANDOM = "RANDOM"
 
+
 #----------------------------------------------------------------------------
 # Paths.
 

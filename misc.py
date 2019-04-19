@@ -169,7 +169,7 @@ def create_result_subdir(result_dir, desc, resume_run_id=None):
 
     # Export config.
     try:
-        with open(os.path.join(result_subdir, 'config.txt'), 'wt') as fout:
+        with open(os.path.join(result_subdir, 'config.txt'), 'xwt') as fout:
             for k, v in sorted(config.__dict__.items()):
                 if not k.startswith('_'):
                     fout.write("%s = %s\n" % (k, str(v)))
@@ -346,20 +346,22 @@ def setup_text_label(text, font='Calibri', fontsize=32, padding=6, glow_size=2.0
 def parse_config_txt(run_id) -> dict:
     result_subdir = locate_result_subdir(run_id)
     # Parse config.txt.
-    parsed_cfg = dict()
+    parsed_cfg = config.EasyDict()
     with open(os.path.join(result_subdir, 'config.txt'), 'rt') as f:
         for line in f:
             if line.startswith('dataset =') or line.startswith('train ='):
                 try:
                     exec(line, parsed_cfg, parsed_cfg)
                 except SyntaxError as e:
-                    line = line.replace("'blur_schedule_type': <BlurScheduleType.NONE: 0>,", "'blur_schedule_type': 'NOBLUR',")
-                    line = line.replace("'blur_schedule_type': <BlurScheduleType.LINEAR: 1>,", "'blur_schedule_type': 'LINEAR',")
-                    line = line.replace("'blur_schedule_type': <BlurScheduleType.EXPONENTIAL_DECAY: 2>,", "'blur_schedule_type': 'EXPONENTIAL_DECAY',")
-                    line = line.replace("'blur_schedule_type': <BlurScheduleType.RANDOM: 3>,", "'blur_schedule_type': 'RANDOM',")
-                    
-                    exec(line, parsed_cfg, parsed_cfg)
-                    
+                    print(line)
+                    b = re.search(r", 'blur_schedule_type': <BlurScheduleType\.((.+): ?('?(.+))'?)>", line)
+                    if b and line.startswith("train ="):
+                        line = line.replace(b.group(0), "")
+                        exec(line, parsed_cfg, parsed_cfg)
+                        blur_type = config.BlurScheduleType(b.group(2))
+                        parsed_cfg.train = config.EasyDict(parsed_cfg.train)
+                        parsed_cfg.train.blur_schedule_type = blur_type
+                        continue
     return parsed_cfg
 
 
@@ -385,17 +387,19 @@ def restore_config(resume_run_id, config):
     snaps = [] # [(png, kimg, lod), ...]
     with open(os.path.join(src_result_subdir, 'log.txt'), 'rt') as log:
         for line in log:
+            tick = re.search(r'tick ([\d]+) ', line)
             k = re.search(r'kimg ([\d\.]+) ', line)
             t = re.search(r'time (\d+d)? *(\d+h)? *(\d+m)? *(\d+s)? ', line)
-            if k and t:
+            if tick and k and t:
+                tick = int(tick.group(1))
                 k = int(float(k.group(1)))
                 t = [int(t.group(i)[:-1]) if t.group(i) else 0 for i in range(1, 5)]
                 t_delta = timedelta(days=t[0], hours=t[1], minutes=t[2], seconds=t[3])
                 if k == kimg:
                     print("PREVIOUS RUN FOUND.")
+                    config.train.resume_tick = tick
+                    config.train.resume_run_id = resume_run_id
+                    config.train.resume_kimg = kimg
+                    config.train.resume_time = t_delta.total_seconds()
                     break
-
-    config.train.resume_run_id = resume_run_id
-    config.train.resume_kimg = kimg
-    config.train.resume_time = t_delta.total_seconds()
     
