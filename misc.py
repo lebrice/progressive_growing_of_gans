@@ -138,30 +138,34 @@ def set_output_log_file(filename, mode='wt'):
 #----------------------------------------------------------------------------
 # Reporting results.
 
-def create_result_subdir(result_dir, desc):
+def create_result_subdir(result_dir, desc, resume_run_id=None):
 
-    # Select run ID and create subdir.
-    while True:
-        run_id = 0
-        for fname in glob.glob(os.path.join(result_dir, '*')):
+    if resume_run_id is None:
+        # Select run ID and create subdir.
+        while True:
+            run_id = 0
+            for fname in glob.glob(os.path.join(result_dir, '*')):
+                try:
+                    fbase = os.path.basename(fname)
+                    ford = int(fbase[:fbase.find('-')])
+                    run_id = max(run_id, ford + 1)
+                except ValueError:
+                    pass
+
+            result_subdir = os.path.join(result_dir, '%03d-%s' % (run_id, desc))
             try:
-                fbase = os.path.basename(fname)
-                ford = int(fbase[:fbase.find('-')])
-                run_id = max(run_id, ford + 1)
-            except ValueError:
-                pass
-
-        result_subdir = os.path.join(result_dir, '%03d-%s' % (run_id, desc))
-        try:
-            os.makedirs(result_subdir)
-            break
-        except OSError:
-            if os.path.isdir(result_subdir):
-                continue
-            raise
+                os.makedirs(result_subdir)
+                break
+            except OSError:
+                if os.path.isdir(result_subdir):
+                    continue
+                raise
+    else:
+        run_id = resume_run_id
+        result_subdir = locate_result_subdir(run_id)
 
     print("Saving results to", result_subdir)
-    set_output_log_file(os.path.join(result_subdir, 'log.txt'))
+    set_output_log_file(os.path.join(result_subdir, 'log.txt'), mode='a+' if resume_run_id is not None else 'wt')
 
     # Export config.
     try:
@@ -251,11 +255,7 @@ def load_dataset_for_previous_run(run_id, **kwargs): # => dataset_obj, mirror_au
     result_subdir = locate_result_subdir(run_id)
 
     # Parse config.txt.
-    parsed_cfg = dict()
-    with open(os.path.join(result_subdir, 'config.txt'), 'rt') as f:
-        for line in f:
-            if line.startswith('dataset =') or line.startswith('train ='):
-                exec(line, parsed_cfg, parsed_cfg)
+    parsed_cfg = parse_config_txt()
     dataset_cfg = parsed_cfg.get('dataset', dict())
     train_cfg = parsed_cfg.get('train', dict())
     mirror_augment = train_cfg.get('mirror_augment', False)
@@ -342,3 +342,60 @@ def setup_text_label(text, font='Calibri', fontsize=32, padding=6, glow_size=2.0
     return value
 
 #----------------------------------------------------------------------------
+
+def parse_config_txt(run_id) -> dict:
+    result_subdir = locate_result_subdir(run_id)
+    # Parse config.txt.
+    parsed_cfg = dict()
+    with open(os.path.join(result_subdir, 'config.txt'), 'rt') as f:
+        for line in f:
+            if line.startswith('dataset =') or line.startswith('train ='):
+                try:
+                    exec(line, parsed_cfg, parsed_cfg)
+                except SyntaxError as e:
+                    line = line.replace("'blur_schedule_type': <BlurScheduleType.NONE: 0>,", "'blur_schedule_type': 'NOBLUR',")
+                    line = line.replace("'blur_schedule_type': <BlurScheduleType.LINEAR: 1>,", "'blur_schedule_type': 'LINEAR',")
+                    line = line.replace("'blur_schedule_type': <BlurScheduleType.EXPONENTIAL_DECAY: 2>,", "'blur_schedule_type': 'EXPONENTIAL_DECAY',")
+                    line = line.replace("'blur_schedule_type': <BlurScheduleType.RANDOM: 3>,", "'blur_schedule_type': 'RANDOM',")
+                    
+                    exec(line, parsed_cfg, parsed_cfg)
+                    
+    return parsed_cfg
+
+
+def restore_config(resume_run_id, config):
+    """
+    Returns all the necessary info to restart a run from the latest snapshot.
+    """
+    network_pkl = locate_network_pkl(resume_run_id)
+    id_string = get_id_string_for_network_pkl(network_pkl)
+    kimg = int(id_string.split("-")[-1].replace(".pkl", ""))
+    parsed_config = parse_config_txt(resume_run_id)
+    parsed_config = config.EasyDict(parsed_config)
+    
+    config.desc = parsed_config.get('desc', config.desc)
+    
+    config.train.update(parsed_config.get('train', dict()))
+    config.dataset.update(parsed_config.get('dataset', dict()))
+
+    from datetime import timedelta
+    src_result_subdir = locate_result_subdir(resume_run_id)
+    # Parse log.
+    times = []
+    snaps = [] # [(png, kimg, lod), ...]
+    with open(os.path.join(src_result_subdir, 'log.txt'), 'rt') as log:
+        for line in log:
+            k = re.search(r'kimg ([\d\.]+) ', line)
+            t = re.search(r'time (\d+d)? *(\d+h)? *(\d+m)? *(\d+s)? ', line)
+            if k and t:
+                k = int(float(k.group(1)))
+                t = [int(t.group(i)[:-1]) if t.group(i) else 0 for i in range(1, 5)]
+                t_delta = timedelta(days=t[0], hours=t[1], minutes=t[2], seconds=t[3])
+                if k == kimg:
+                    print("PREVIOUS RUN FOUND.")
+                    break
+
+    config.train.resume_run_id = resume_run_id
+    config.train.resume_kimg = kimg
+    config.train.resume_time = t_delta.total_seconds()
+    

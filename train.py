@@ -149,7 +149,7 @@ def train_progressive_gan(
     resume_snapshot         = None,         # Snapshot index to resume training from, None = autodetect.
     resume_kimg             = 0.0,          # Assumed training progress at the beginning. Affects reporting and training schedule.
     resume_time             = 0.0,           # Assumed wallclock time at the beginning. Affects reporting.
-    blur_schedule_type: BlurScheduleType = BlurScheduleType.NONE,
+    blur_schedule_type: BlurScheduleType = BlurScheduleType.NOBLUR,
     ):         
 
     maintenance_start_time = time.time()
@@ -213,9 +213,9 @@ def train_progressive_gan(
     grid_fakes = Gs.run(grid_latents, grid_labels, minibatch_size=sched.minibatch//config.num_gpus)
 
     print('Setting up result dir...')
-    result_subdir = misc.create_result_subdir(config.result_dir, config.desc)
+    result_subdir = misc.create_result_subdir(config.result_dir, config.desc, resume_run_id)
     misc.save_image_grid(grid_reals, os.path.join(result_subdir, 'reals.png'), drange=training_set.dynamic_range, grid_size=grid_size)
-    misc.save_image_grid(grid_fakes, os.path.join(result_subdir, 'fakes%06d.png' % 0), drange=drange_net, grid_size=grid_size)
+    misc.save_image_grid(grid_fakes, os.path.join(result_subdir, 'fakes%06d.png' % int(resume_kimg)), drange=drange_net, grid_size=grid_size)
     summary_log = tf.summary.FileWriter(result_subdir)
     if save_tf_graph:
         summary_log.add_graph(tf.get_default_graph())
@@ -324,7 +324,40 @@ def train_progressive_gan(
 # Main entry point.
 # Calls the function indicated in config.py.
 
+
+
 if __name__ == "__main__":
+    
+    import sys
+    import argparse
+    argv = sys.argv
+    prog = argv[0]
+    parser = argparse.ArgumentParser(
+        prog        = prog,
+        description = 'Training Script',
+        epilog      = 'Type "%s <command> -h" for more information.' % prog)
+
+    parser.add_argument("--resume-run-id", type=int, default=None)
+    parser.add_argument("--run-name", type=str)
+    parser.add_argument("-b", "--blur-schedule", type=str, choices=["NOBLUR", "LINEAR", "EXPDECAY", "RANDOM"], default=BlurScheduleType.NOBLUR)
+    parser.add_argument("-nimg", "--train-k-images", type=int, default=config.train.total_kimg)
+    
+    args = parser.parse_args(argv[1:])
+    print("Arguments used:", args)
+
+    
+    print("run_name:", args.run_name)
+    
+    if args.resume_run_id is not None:
+        misc.restore_config(args.resume_run_id, config)
+    
+        if args.run_name:
+            config.desc = args.run_name
+
+    config.train.blur_schedule_type = BlurScheduleType(args.blur_schedule)
+    config.train.total_kimg = args.train_k_images
+    
+
     misc.init_output_logging()
     np.random.seed(config.random_seed)
     print('Initializing TensorFlow...')

@@ -19,10 +19,10 @@ from datetime import datetime, timedelta
 from enum import Enum
 
 class BlurScheduleType(Enum):
-    NONE = 0
-    LINEAR = 1
-    EXPONENTIAL_DECAY = 2,
-    RANDOM = 3,
+    NOBLUR = "NOBLUR"
+    LINEAR = "LINEAR"
+    EXPONENTIAL_DECAY = "EXPDECAY"
+    RANDOM = "RANDOM"
 
 #----------------------------------------------------------------------------
 # Paths.
@@ -59,12 +59,7 @@ env.TF_CPP_MIN_LOG_LEVEL                        = '1'       # 0 (default) = Prin
 desc        = 'pgan'                                        # Description string included in result subdir name.
 random_seed = 1000                                          # Global random seed.
 dataset     = EasyDict()                                    # Options for dataset.load_dataset().
-train       = EasyDict(
-    func='train.train_progressive_gan',
-    #resume_run_id=17,
-    #resume_kimg=524.3,
-    #resume_time=timedelta(hours=16, minutes=27, seconds=21).total_seconds(),
-)  # Options for main training func.
+train       = EasyDict(func='train.train_progressive_gan')  # Options for main training func.
 G           = EasyDict(func='networks.G_paper')             # Options for generator network.
 D           = EasyDict(func='networks.D_paper')             # Options for discriminator network.
 G_opt       = EasyDict(beta1=0.0, beta2=0.99, epsilon=1e-8) # Options for generator optimizer.
@@ -155,10 +150,10 @@ desc += '-nogrowing'; sched.lod_initial_resolution = 128; sched.lod_training_kim
 #desc += '-norepeat'; train.minibatch_repeats = 1
 #desc += '-noreset'; train.reset_opt_for_new_lod = False
 
-# desc += "-BLUR-NONE"; train.blur_schedule_type = BlurScheduleType.NONE
-desc += "-BLUR-LINEAR"; train.blur_schedule_type = BlurScheduleType.LINEAR
+# desc += "-NOBLUR";       train.blur_schedule_type = BlurScheduleType.NOBLUR
+# desc += "-BLUR-LINEAR";   train.blur_schedule_type = BlurScheduleType.LINEAR
 # desc += "-BLUR-EXPDECAY"; train.blur_schedule_type = BlurScheduleType.EXPONENTIAL_DECAY
-# desc += "-BLUR-RANDOM"; train.blur_schedule_type = BlurScheduleType.RANDOM
+# desc += "-BLUR-RANDOM";   train.blur_schedule_type = BlurScheduleType.RANDOM
 train.total_kimg = 1_000
 sched.lod_initial_resolution = 128
 sched.tick_kimg_base = 1
