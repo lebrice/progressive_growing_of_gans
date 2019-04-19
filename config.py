@@ -39,7 +39,7 @@ data_dir = "/Tmp/pichetre/datasets"
 result_dir = "E:/Google Drive/progressive_growing"
 celeba_tfrecords_dir = "c:/celeba"
 if using_mila_cluster:
-    result_dir = "~/IFT6085/progressive_growing_of_gans/results"
+    result_dir = "/network/home/pichetre/IFT6085/progressive_growing_of_gans/results"
     celeba_tfrecords_dir = "/Tmp/pichetre/datasets/celeba"
 
 #----------------------------------------------------------------------------
