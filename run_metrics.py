@@ -37,7 +37,7 @@ if __name__ == "__main__":
     import config
     
     import contextlib
-    contextlib.contextmanager
+    @contextlib.contextmanager
     def setup_before_metric():
         misc.init_output_logging()
         np.random.seed(config.random_seed)
@@ -53,13 +53,7 @@ if __name__ == "__main__":
                 tf.get_default_session().close()
             tf.reset_default_graph()
 
-    if metric == "swd-16k" or metric == "ALL":
-        with setup_before_metric():
-            log='metric-swd-16k.txt'
-            config.num_gpus = 1
-            config.desc = log.split('.')[0] + '-' + str(run_id)
-            util_scripts.evaluate_metrics(run_id=run_id, log=log, metrics=['swd'], num_images=16384, real_passes=2)
-    
+   
     if metric == "fid-10k" or metric == "ALL":
         with setup_before_metric():
             log='metric-fid-10k.txt'
@@ -67,7 +61,7 @@ if __name__ == "__main__":
             config.desc = log.split('.')[0] + '-' + str(run_id)
             util_scripts.evaluate_metrics(run_id=run_id, log=log, metrics=['fid'], num_images=10000, real_passes=1)
     
-    if metric == "is-50k" or metric == "ALL":
+    if metric == "fid-50k" or metric == "ALL":
         with setup_before_metric():
             log='metric-fid-50k.txt'
             config.num_gpus = 1
@@ -87,5 +81,12 @@ if __name__ == "__main__":
             config.num_gpus = 1
             config.desc = log.split('.')[0] + '-' + str(run_id)
             util_scripts.evaluate_metrics(run_id=run_id, log='metric-msssim-20k.txt', metrics=['msssim'], num_images=20000, real_passes=1)
-
+    
+    if metric == "swd-16k" or metric == "ALL":
+        with setup_before_metric():
+            log='metric-swd-16k.txt'
+            config.num_gpus = 1
+            config.desc = log.split('.')[0] + '-' + str(run_id)
+            util_scripts.evaluate_metrics(run_id=run_id, log=log, metrics=['swd'], num_images=16384, real_passes=2)
+    
     print('Exiting...')
