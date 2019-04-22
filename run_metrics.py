@@ -48,6 +48,7 @@ if __name__ == "__main__":
             yield
         except Exception as e:
             print(e)
+            raise e
         finally:
             if tf.get_default_session():
                 tf.get_default_session().close()

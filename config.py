@@ -16,13 +16,6 @@ class EasyDict(dict):
     def __delattr__(self, name): del self[name]
 
 from datetime import datetime, timedelta
-from enum import Enum
-
-class BlurScheduleType(Enum):
-    NOBLUR = "NOBLUR"
-    LINEAR = "LINEAR"
-    EXPONENTIAL_DECAY = "EXPDECAY"
-    RANDOM = "RANDOM"
 
 
 #----------------------------------------------------------------------------

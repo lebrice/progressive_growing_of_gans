@@ -169,11 +169,12 @@ def create_result_subdir(result_dir, desc, resume_run_id=None):
 
     # Export config.
     try:
-        with open(os.path.join(result_subdir, 'config.txt'), 'xwt') as fout:
+        with open(os.path.join(result_subdir, 'config.txt'), 'wt') as fout:
             for k, v in sorted(config.__dict__.items()):
                 if not k.startswith('_'):
                     fout.write("%s = %s\n" % (k, str(v)))
-    except:
+    except Exception as e:
+        print(e)
         pass
 
     return result_subdir
