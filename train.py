@@ -222,6 +222,7 @@ def train_progressive_gan(
     print('Setting up snapshot image grid...')
     grid_size, grid_reals, grid_labels, grid_latents = setup_snapshot_image_grid(G, training_set, **config.grid)
     sched = TrainingSchedule(total_kimg * 1000, training_set, **config.sched)
+    print("ACTUAL blur schedule type:", sched.blur_schedule_type)
     grid_fakes = Gs.run(grid_latents, grid_labels, minibatch_size=sched.minibatch//config.num_gpus)
 
     print('Setting up result dir...')
@@ -252,21 +253,20 @@ def train_progressive_gan(
         initial_value = gaussian_blur.maximum_reasonable_std(image_resolution)
         final_value = 0.01 # desired value at (total_kimg * 1000) steps.
         if sched.blur_schedule_type == BlurScheduleType.EXPONENTIAL_DECAY:
+            print("EXPDECAY")
             decay_rate = np.log(final_value / initial_value)
             return initial_value * np.exp(decay_rate * progress_percentage)
         elif sched.blur_schedule_type == BlurScheduleType.LINEAR:
+            print("LINEAR")
             # linear decay from highest STD to lowest std.
             return initial_value + progress_percentage * (final_value - initial_value)
         elif sched.blur_schedule_type == BlurScheduleType.RANDOM:
+            print("RANDOM")
             return np.random.uniform(final_value, initial_value)
         else:
+            print("NOBLURRING")
             # No blurring.
             return 0
-
-
-    # TODO: implement the scale schedule
-    # with tf.variable_scope("blur", reuse=tf.AUTO_REUSE):
-    #     scale = tf.get_variable("scale", shape=[], trainable=False)
 
     while cur_nimg < total_kimg * 1000:
         # Choose training parameters and configure training ops.
@@ -284,6 +284,8 @@ def train_progressive_gan(
                 tfutil.run([D_train_op, Gs_update_op], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch, scale: scale_schedule()})
                 cur_nimg += sched.minibatch
             tfutil.run([G_train_op], {lod_in: sched.lod, lrate_in: sched.G_lrate, minibatch_in: sched.minibatch, scale: scale_schedule()})
+
+        exit()
 
         # Perform maintenance tasks once per tick.
         done = (cur_nimg >= total_kimg * 1000)
