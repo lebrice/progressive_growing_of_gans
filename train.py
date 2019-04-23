@@ -253,7 +253,6 @@ def train_progressive_gan(
         initial_value = gaussian_blur.maximum_reasonable_std(image_resolution)
         final_value = 0.01 # desired value at (total_kimg * 1000) steps.
         print("inside scale_schedule:", sched.blur_schedule_type)   
-        blur_type = BlurScheduleType(sched.blur_schedule_type)
         if sched.blur_schedule_type == BlurScheduleType.EXPONENTIAL_DECAY:
             print("EXPDECAY")
             decay_rate = np.log(final_value / initial_value)
