@@ -25,7 +25,7 @@ class BlurScheduleType(Enum):
     EXPONENTIAL_DECAY = "EXPDECAY"
     RANDOM = "RANDOM"
 
- def scale_schedule(cur_nimg: int, total_kimg: int, blur_type: BlurScheduleType, image_resolution = 128) -> float:
+def scale_schedule(cur_nimg: int, total_kimg: int, blur_type: BlurScheduleType, image_resolution = 128) -> float:
     """
     a schedule for the blurring std.
     """
