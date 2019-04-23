@@ -25,6 +25,30 @@ class BlurScheduleType(Enum):
     EXPONENTIAL_DECAY = "EXPDECAY"
     RANDOM = "RANDOM"
 
+ def scale_schedule(cur_nimg: int, total_kimg: int, blur_type: BlurScheduleType, image_resolution = 128) -> float:
+    """
+    a schedule for the blurring std.
+    """
+    progress_percentage = cur_nimg / (total_kimg * 1000)
+    initial_value = gaussian_blur.maximum_reasonable_std(image_resolution)
+    final_value = 0.01 # desired value at the end of training.
+
+    print("inside scale_schedule:", blur_type)
+    if blur_type == BlurScheduleType.EXPONENTIAL_DECAY.value:
+        print("EXPDECAY")
+        decay_rate = np.log(final_value / initial_value)
+        return initial_value * np.exp(decay_rate * progress_percentage)
+    elif blur_type == BlurScheduleType.LINEAR.value:
+        print("LINEAR")
+        # linear decay from highest STD to lowest std.
+        return initial_value + progress_percentage * (final_value - initial_value)
+    elif blur_type == BlurScheduleType.RANDOM.value:
+        print("RANDOM")
+        return np.random.uniform(final_value, initial_value)
+    else:
+        print("NOBLURRING")
+        # No blurring.
+        return 0
 
 #----------------------------------------------------------------------------
 # Choose the size and contents of the image snapshot grids that are exported
@@ -140,6 +164,7 @@ class TrainingSchedule:
         self.tick_kimg = tick_kimg_dict.get(self.resolution, tick_kimg_base)
 
         self.blur_schedule_type = blur_schedule_type
+        print("Constructed a new TrainingSchedule with a blur type:", self.blur_schedule_type)
 
 #----------------------------------------------------------------------------
 # Main training script.
@@ -243,36 +268,14 @@ def train_progressive_gan(
     train_start_time = tick_start_time - resume_time
     prev_lod = -1.0
 
-    def scale_schedule() -> float:
-        """
-        a schedule for the blurring std.
-        """
-        progress_percentage = cur_nimg / (total_kimg * 1000)
-        image_resolution = 128
-
-        initial_value = gaussian_blur.maximum_reasonable_std(image_resolution)
-        final_value = 0.01 # desired value at (total_kimg * 1000) steps.
-        print("inside scale_schedule:", sched.blur_schedule_type)   
-        if sched.blur_schedule_type == BlurScheduleType.EXPONENTIAL_DECAY:
-            print("EXPDECAY")
-            decay_rate = np.log(final_value / initial_value)
-            return initial_value * np.exp(decay_rate * progress_percentage)
-        elif sched.blur_schedule_type == BlurScheduleType.LINEAR:
-            print("LINEAR")
-            # linear decay from highest STD to lowest std.
-            return initial_value + progress_percentage * (final_value - initial_value)
-        elif sched.blur_schedule_type == BlurScheduleType.RANDOM:
-            print("RANDOM")
-            return np.random.uniform(final_value, initial_value)
-        else:
-            print("NOBLURRING")
-            # No blurring.
-            return 0
+    
+    scale_value: float 
 
     while cur_nimg < total_kimg * 1000:
         # Choose training parameters and configure training ops.
         sched = TrainingSchedule(cur_nimg, training_set, **config.sched)
-        
+        scale_value = scale_schedule(cur_nimg, total_kimg, sched.blur_schedule_type)
+
         training_set.configure(sched.minibatch, sched.lod)
         if reset_opt_for_new_lod:
             if np.floor(sched.lod) != np.floor(prev_lod) or np.ceil(sched.lod) != np.ceil(prev_lod):
@@ -282,11 +285,12 @@ def train_progressive_gan(
         # Run training ops.
         for repeat in range(minibatch_repeats):
             for _ in range(D_repeats):
-                tfutil.run([D_train_op, Gs_update_op], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch, scale: scale_schedule()})
-                cur_nimg += sched.minibatch
-            tfutil.run([G_train_op], {lod_in: sched.lod, lrate_in: sched.G_lrate, minibatch_in: sched.minibatch, scale: scale_schedule()})
+                # get the scale value for this batch.
+                scale_value = scale_schedule(cur_nimg, total_kimg, sched.blur_schedule_type)
 
-        exit()
+                tfutil.run([D_train_op, Gs_update_op], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch, scale: scale_value})
+                cur_nimg += sched.minibatch
+            tfutil.run([G_train_op], {lod_in: sched.lod, lrate_in: sched.G_lrate, minibatch_in: sched.minibatch, scale: scale_value})
 
         # Perform maintenance tasks once per tick.
         done = (cur_nimg >= total_kimg * 1000)
@@ -300,7 +304,6 @@ def train_progressive_gan(
             maintenance_time = tick_start_time - maintenance_start_time
             maintenance_start_time = cur_time
 
-            scale_value = scale_schedule()
             # Report progress.
             print('tick %-5d kimg %-8.1f lod %-5.2f minibatch %-4d scale %-2.3f time %-12s sec/tick %-7.1f sec/kimg %-7.2f maintenance %.1f' % (
                 tfutil.autosummary('Progress/tick', cur_tick),
