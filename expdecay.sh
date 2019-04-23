@@ -1,8 +1,9 @@
 #!/bin/bash
 #SBATCH --ntasks-per-node=4
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:2
 #SBATCH --mem=16G
-#SBATCH --time=1-00:00
+#SBATCH --time=2-00:00
+#SBATCH --exclude=kepler2,kepler3
 
 cd ~/IFT6085/progressive_growing_of_gans
 
