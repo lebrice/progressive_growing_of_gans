@@ -134,7 +134,6 @@ class TrainingSchedule:
         D_lrate_dict            = {},       # Resolution-specific overrides.
         tick_kimg_base          = 160,      # Default interval of progress snapshots.
         tick_kimg_dict          = {4: 160, 8:140, 16:120, 32:100, 64:80, 128:60, 256:40, 512:20, 1024:10}, # Resolution-specific overrides.
-        blur_schedule_type: BlurScheduleType = BlurScheduleType.NOBLUR,
         ): 
 
         # Training phase.
@@ -163,8 +162,6 @@ class TrainingSchedule:
         self.D_lrate = D_lrate_dict.get(self.resolution, D_lrate_base)
         self.tick_kimg = tick_kimg_dict.get(self.resolution, tick_kimg_base)
 
-        self.blur_schedule_type = blur_schedule_type
-        print("Constructed a new TrainingSchedule with a blur type:", self.blur_schedule_type)
 
 #----------------------------------------------------------------------------
 # Main training script.
@@ -187,6 +184,7 @@ def train_progressive_gan(
     resume_kimg             = 0.0,          # Assumed training progress at the beginning. Affects reporting and training schedule.
     resume_time             = 0.0,           # Assumed wallclock time at the beginning. Affects reporting.
     resume_tick: int = 0,
+    blur_schedule_type: BlurScheduleType = BlurScheduleType.NOBLUR,
     ):         
 
     maintenance_start_time = time.time()
@@ -247,7 +245,9 @@ def train_progressive_gan(
     print('Setting up snapshot image grid...')
     grid_size, grid_reals, grid_labels, grid_latents = setup_snapshot_image_grid(G, training_set, **config.grid)
     sched = TrainingSchedule(total_kimg * 1000, training_set, **config.sched)
-    print("ACTUAL blur schedule type:", sched.blur_schedule_type)
+    
+    print("Blur schedule type:", blur_schedule_type)
+
     grid_fakes = Gs.run(grid_latents, grid_labels, minibatch_size=sched.minibatch//config.num_gpus)
 
     print('Setting up result dir...')
@@ -274,7 +274,7 @@ def train_progressive_gan(
     while cur_nimg < total_kimg * 1000:
         # Choose training parameters and configure training ops.
         sched = TrainingSchedule(cur_nimg, training_set, **config.sched)
-        scale_value = scale_schedule(cur_nimg, total_kimg, sched.blur_schedule_type)
+        scale_value = scale_schedule(cur_nimg, total_kimg, blur_schedule_type)
 
         training_set.configure(sched.minibatch, sched.lod)
         if reset_opt_for_new_lod:
@@ -286,7 +286,7 @@ def train_progressive_gan(
         for repeat in range(minibatch_repeats):
             for _ in range(D_repeats):
                 # get the scale value for this batch.
-                scale_value = scale_schedule(cur_nimg, total_kimg, sched.blur_schedule_type)
+                scale_value = scale_schedule(cur_nimg, total_kimg, blur_schedule_type)
 
                 tfutil.run([D_train_op, Gs_update_op], {lod_in: sched.lod, lrate_in: sched.D_lrate, minibatch_in: sched.minibatch, scale: scale_value})
                 cur_nimg += sched.minibatch
@@ -366,8 +366,8 @@ if __name__ == "__main__":
     
     print("run_name:", args.run_name)
     
-    config.sched.blur_schedule_type = BlurScheduleType(args.blur_schedule)
-    print("Chosen blur schedule type: ", config.sched.blur_schedule_type)
+    config.train.blur_schedule_type = BlurScheduleType(args.blur_schedule)
+    print("Chosen blur schedule type: ", config.train.blur_schedule_type)
     
     if args.resume_run_id:
         # we are resuming a previous training session.
@@ -375,7 +375,7 @@ if __name__ == "__main__":
     if args.run_name:
         config.desc = args.run_name
     else:
-        config.desc += f"-{config.sched.blur_schedule_type.value}"
+        config.desc += f"-{config.train.blur_schedule_type.value}"
     
     print("config desc:", config.desc)    
     config.train.total_kimg = args.train_k_images
