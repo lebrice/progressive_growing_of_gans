@@ -33,21 +33,18 @@ def scale_schedule(cur_nimg: int, total_kimg: int, blur_type: BlurScheduleType, 
     initial_value = gaussian_blur.maximum_reasonable_std(image_resolution)
     final_value = 0.01 # desired value at the end of training.
 
-    print("inside scale_schedule:", blur_type)
-    blur_type = blur_type.value
-    if blur_type == BlurScheduleType.EXPONENTIAL_DECAY:
-        print("EXPDECAY")
+    # Weird enum behaviour.
+    blur_type = BlurScheduleType[blur_type.name]
+
+    if blur_type is BlurScheduleType.EXPONENTIAL_DECAY:
         decay_rate = np.log(final_value / initial_value)
         return initial_value * np.exp(decay_rate * progress_percentage)
-    elif blur_type == BlurScheduleType.LINEAR:
-        print("LINEAR")
+    elif blur_type is BlurScheduleType.LINEAR:
         # linear decay from highest STD to lowest std.
         return initial_value + progress_percentage * (final_value - initial_value)
-    elif blur_type == BlurScheduleType.RANDOM:
-        print("RANDOM")
+    elif blur_type is BlurScheduleType.RANDOM:
         return np.random.uniform(final_value, initial_value)
     else:
-        print("NOBLURRING")
         # No blurring.
         return 0
 
@@ -186,7 +183,7 @@ def train_progressive_gan(
     resume_time             = 0.0,           # Assumed wallclock time at the beginning. Affects reporting.
     resume_tick: int = 0,
     blur_schedule_type: BlurScheduleType = BlurScheduleType.NOBLUR,
-    ):         
+    ):
 
     maintenance_start_time = time.time()
     training_set = dataset.load_dataset(data_dir=config.data_dir, verbose=True, **config.dataset)
@@ -366,12 +363,14 @@ if __name__ == "__main__":
 
     
     print("run_name:", args.run_name)
+    b = BlurScheduleType(args.blur_schedule)
+    print(b, type(b))
     
     config.train.blur_schedule_type = BlurScheduleType(args.blur_schedule)
     print("Chosen blur schedule type: ", config.train.blur_schedule_type)
-    
+
     if args.resume_run_id:
-        # we are resuming a previous training session.
+        print("we are resuming a previous training session with run id:", args.resume_run_id)
         misc.restore_config(args.resume_run_id, config)
     if args.run_name:
         config.desc = args.run_name
