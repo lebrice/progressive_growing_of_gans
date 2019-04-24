@@ -26,7 +26,7 @@ if __name__ == "__main__":
         epilog      = 'Type "%s <command> -h" for more information.' % prog)
 
     parser.add_argument("--run-id", type=int, required=True)
-    parser.add_argument("--metric", type=str, choices=["swd-16k", "fid-10k", "fid-50k", "is-50k", "msssim-20k", "ALL"], default="ALL")
+    parser.add_argument("--metric", type=str, choices=["swd-16k", "fid-10k", "fid-50k", "is-50k", "msssim-20k"], default="fid-10k")
 
     args = parser.parse_args(argv[1:])
     print("Arguments used:", args)
@@ -50,11 +50,12 @@ if __name__ == "__main__":
             print(e)
             raise e
         finally:
-            if tf.get_default_session():
-                tf.get_default_session().close()
+            sess = tf.get_default_session()
+            if sess is not None:
+                sess.close()
             tf.reset_default_graph()
-
    
+
     if metric == "fid-10k" or metric == "ALL":
         with setup_before_metric():
             log='metric-fid-10k.txt'
