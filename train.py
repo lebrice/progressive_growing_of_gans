@@ -355,23 +355,24 @@ if __name__ == "__main__":
 
     parser.add_argument("--resume-run-id", type=int, default=None)
     parser.add_argument("--run-name", type=str)
-    parser.add_argument("-b", "--blur-schedule", type=str, choices=["NOBLUR", "LINEAR", "EXPDECAY", "RANDOM"], default=BlurScheduleType.NOBLUR)
+    parser.add_argument("-b", "--blur-schedule", type=str, choices=["NOBLUR", "LINEAR", "EXPDECAY", "RANDOM", "NOBLUR"], default=None)
     parser.add_argument("-nimg", "--train-k-images", type=int, default=1_000)
     
     args = parser.parse_args(argv[1:])
     print("Arguments used:", args)
-
-    
     print("run_name:", args.run_name)
-    b = BlurScheduleType(args.blur_schedule)
-    print(b, type(b))
     
-    config.train.blur_schedule_type = BlurScheduleType(args.blur_schedule)
-    print("Chosen blur schedule type: ", config.train.blur_schedule_type)
-
+    # if we resume a run, we might want to choose a different kind of blurring for the rest of the run?
     if args.resume_run_id:
         print("we are resuming a previous training session with run id:", args.resume_run_id)
         misc.restore_config(args.resume_run_id, config)
+
+    if args.blur_schedule is not None:
+        config.train.blur_schedule_type = BlurScheduleType(args.blur_schedule)
+    else:
+        config.train.blur_schedule_type = config.train.get("blur_schedule_type", BlurScheduleType.NOBLUR)
+    print("Chosen blur schedule type: ", config.train.blur_schedule_type)
+
     if args.run_name:
         config.desc = args.run_name
     else:

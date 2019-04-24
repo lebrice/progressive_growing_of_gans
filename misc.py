@@ -15,7 +15,7 @@ import numpy as np
 from collections import OrderedDict 
 import scipy.ndimage
 import PIL.Image
-
+from train import BlurScheduleType
 import config
 import dataset
 import legacy
@@ -361,7 +361,7 @@ def parse_config_txt(run_id) -> dict:
                         blur_type_str = b.group(2)
                         if blur_type_str == "NONE":
                             blur_type_str = "NOBLUR"
-                        blur_type = config.BlurScheduleType(blur_type_str)
+                        blur_type = BlurScheduleType[blur_type_str]
                         parsed_cfg.train = config.EasyDict(parsed_cfg.train)
                         parsed_cfg.train.blur_schedule_type = blur_type
                         continue
@@ -372,7 +372,9 @@ def restore_config(resume_run_id, config):
     """
     Returns all the necessary info to restart a run from the latest snapshot.
     """
-    network_pkl = locate_network_pkl(resume_run_id)
+    network_pkls = list_network_pkls(resume_run_id, include_final=False)
+    print("Network snapshots available: (except the final)", network_pkls)
+    network_pkl = network_pkls[-1]
     id_string = get_id_string_for_network_pkl(network_pkl)
     kimg = int(id_string.split("-")[-1].replace(".pkl", ""))
     parsed_config = parse_config_txt(resume_run_id)
