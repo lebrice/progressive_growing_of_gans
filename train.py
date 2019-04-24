@@ -34,6 +34,7 @@ def scale_schedule(cur_nimg: int, total_kimg: int, blur_type: BlurScheduleType, 
     final_value = 0.01 # desired value at the end of training.
 
     print("inside scale_schedule:", blur_type)
+    blur_type = blur_type.value
     if blur_type == BlurScheduleType.EXPONENTIAL_DECAY:
         print("EXPDECAY")
         decay_rate = np.log(final_value / initial_value)
