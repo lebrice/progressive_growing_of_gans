@@ -2,7 +2,6 @@
 2D Gaussian Blur Keras layer.
 """
 import tensorflow as tf
-import tensorflow_probability as tfp
 import tensorflow.keras as keras
 import tensorflow.math as math
 from typing import Tuple
@@ -41,6 +40,14 @@ def get_image_dims(image) -> Tuple[int, int, int]:
     image_width = image.shape[2 if data_format == "NHWC" else -1]
     image_channels = image.shape[-1 if data_format == "NHWC" else 1]
     return image_height, image_width, image_channels
+
+
+def gaussian_kernel_1d(std, kernel_size):
+    x = tf.range(-(kernel_size//2), (kernel_size//2)+1, dtype=float)
+    g = tf.exp(- (x**2 / (2 * std**2))) / (tf.sqrt(2 * np.pi) * std)
+    # normalize the sum to 1
+    g = g / tf.reduce_sum(g)
+    return g
 
 def image_at_scale(images: tf.Tensor, scale: float) -> tf.Tensor:
     """
@@ -91,13 +98,7 @@ def gaussian_blur(
     data_format = get_data_format(image)
     assert data_format in {"NHWC", "NCHW"}, "invalid data format"
     
-    h, w, c = get_image_dims(image)
-
-    size = kernel_size
-
-    distribution = tfp.distributions.Normal(0, std)
-    vals = distribution.prob(tf.range(-(size//2), (size//2)+1, dtype=float))
-    kernel = vals / tf.reduce_sum(vals)
+    kernel = gaussian_kernel_1d(std, kernel_size)
     kernel = tf.identity(kernel, name="gaussian_kernel")
     # summary = tf.summary.image(
     #     "gaussian_kernel",
@@ -105,6 +106,7 @@ def gaussian_blur(
     # )
 
     # expand the kernel to match the requirements of depthsiwe_conv2d
+    h, w, c = get_image_dims(image)
     kernel = kernel[:, tf.newaxis, tf.newaxis, tf.newaxis]
     kernel_h = tf.tile(kernel, [1, 1, c, 1])
     kernel_v = tf.transpose(kernel_h, [1, 0, 2, 3])
