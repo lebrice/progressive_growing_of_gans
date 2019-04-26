@@ -2,10 +2,11 @@
 #SBATCH --ntasks-per-node=4
 #SBATCH --gres=gpu:1
 #SBATCH --mem=16G
-#SBATCH --time=1-00:00
+#SBATCH --time=5-00:00
 #SBATCH --exclude=kepler2,kepler3
 
-RUN_ID=$1
+# passed in using --export=RUN_ID=x now.
+##RUN_ID=$1
 HOST=`hostname`
 MILA=true
 if [[ "$HOST" == "Brigitte" ]]; then
@@ -21,9 +22,10 @@ elif [[ -n "$RUN_ID" ]]; then
 fi
 # Change to the directory containing this script
 cd "$(dirname "$0")"
-
+echo `pwd`
 if $MILA; then
     source ~/miniconda3/bin/activate
+    cd ~/IFT6085/progressive_growing_of_gans/
     cp -r --no-clobber datasets /Tmp/pichetre/ -v
 fi
 
