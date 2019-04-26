@@ -126,7 +126,6 @@ def gaussian_blur(
         padding="SAME",
         data_format=data_format,
     )
-
     return result_2
 
 
@@ -134,37 +133,18 @@ class GaussianBlur2D(keras.layers.Layer):
     def __init__(
         self,
         std: float,
-        data_format="channels_first",
         *args,
         **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.std = std
-        self.data_format = data_format
-        
         self.trainable = False
         
 #     @tf.function
     def call(self, image: tf.Tensor):
         flipped = tf.transpose(image, [0,2,3,1])
         tf.summary.image("image", flipped)
-        return gaussian_blur(
+        return image_at_scale
             image,
-            std=self.std,
-            #data_format=self.data_format,
+            self.std,
         )
-
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    from matplotlib import cm
-    from mpl_toolkits.mplot3d import Axes3D
-    kernel_2d = tf.einsum('i,j->ij', kernel_1, kernel_2)
-    # Make data.
-    X = np.arange(0, size, 1)
-    Y = np.arange(0, size, 1)
-    X, Y = np.meshgrid(X, Y)
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
-    ax.plot_surface(X, Y, kernel, cmap=cm.coolwarm, linewidth=0, antialiased=False)
-    plt.show()
