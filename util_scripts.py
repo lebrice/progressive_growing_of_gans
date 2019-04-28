@@ -237,3 +237,22 @@ def evaluate_metrics(run_id, log, metrics, num_images, real_passes, minibatch_si
     print()
 
 #----------------------------------------------------------------------------
+
+if __name__ == "__main__":
+
+    import sys
+    import argparse
+    argv = sys.argv
+    prog = argv[0]
+    parser = argparse.ArgumentParser(
+        prog        = prog,
+        description = 'Script for making a training video',
+        epilog      = 'Type "%s <command> -h" for more information.' % prog)
+
+    parser.add_argument("--run-id", type=str, default=None)
+    args = parser.parse_args()
+
+    import config
+    config.num_gpus = 1
+    config.desc = 'training-video-' + str(args.run_id)
+    generate_training_video(run_id=args.run_id, duration_sec=20.0)

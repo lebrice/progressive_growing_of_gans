@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 from socket import gethostname
 
 # my basement computer's hostname is Brigitte.
-using_mila_cluster = gethostname() != "Brigitte" 
+using_mila_cluster = gethostname() not in { "Brigitte", "fabrice-XPS-15-9570" } 
 print("Using the MILA cluster?", using_mila_cluster)
 
 data_dir = "/Tmp/pichetre/datasets"

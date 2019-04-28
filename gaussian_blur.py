@@ -151,9 +151,7 @@ class GaussianBlur2D(keras.layers.Layer):
         
 #     @tf.function
     def call(self, image: tf.Tensor):
-        flipped = tf.transpose(image, [0,2,3,1])
-        tf.summary.image("image", flipped)
-        return image_at_scale
+        return image_at_scale(
             image,
             self.std,
         )
